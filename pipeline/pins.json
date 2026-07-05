@@ -1,0 +1,100 @@
+{
+  "comment": "Pinned upstream artifacts. Every URL is a release tag or tag-addressed raw file — never a moving branch (spike lesson: master drifts). sha256 verified on every fetch; a mismatch or missing hash fails the pipeline loudly. When bumping a pin: re-run docs/research/extract-xpath-inventory.py against the new rule sources first (engine/XPath-3.x compatibility gate), then update tag + sha256 together.",
+  "artifacts": {
+    "cen-ubl": {
+      "description": "CEN/TC 434 EN 16931 validation artefacts — UBL binding (official precompiled XSLT + examples)",
+      "upstream": "ConnectingEurope/eInvoicing-EN16931",
+      "tag": "validation-1.3.16",
+      "license": "EUPL-1.2",
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-ubl-1.3.16.zip",
+      "sha256": "bafada015efbc5248bf5e05ad2191e1d9833ef96e9dd5f4bce420a747342da85",
+      "kind": "zip",
+      "extract": {
+        "xslt/EN16931-UBL-validation.xslt": "work/cen-ubl.xslt",
+        "examples/ubl-tc434-example1.xml": "work/fixture-src/ubl-en16931-valid.xml"
+      }
+    },
+    "cen-cii": {
+      "description": "CEN/TC 434 EN 16931 validation artefacts — CII binding (official precompiled XSLT + examples)",
+      "upstream": "ConnectingEurope/eInvoicing-EN16931",
+      "tag": "validation-1.3.16",
+      "license": "EUPL-1.2",
+      "url": "https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.16/en16931-cii-1.3.16.zip",
+      "sha256": "1cd53cb8a84d38aedc82c0caede217da983a7934dd663f793a092fd66443c561",
+      "kind": "zip",
+      "extract": {
+        "xslt/EN16931-CII-validation.xslt": "work/cen-cii.xslt",
+        "examples/CII_example1.xml": "work/fixture-src/cii-en16931-valid.xml"
+      }
+    },
+    "xrechnung-schematron": {
+      "description": "KoSIT XRechnung Schematron 2.5.0 for XRechnung 3.0.2 (official compiled XSL, SchXslt-built upstream)",
+      "upstream": "itplr-kosit/xrechnung-schematron",
+      "tag": "v2.5.0",
+      "license": "Apache-2.0",
+      "url": "https://github.com/itplr-kosit/xrechnung-schematron/releases/download/v2.5.0/xrechnung-3.0.2-schematron-2.5.0.zip",
+      "sha256": "a0f3d82737759bee8591c298ff24983a8f1c667f85e45a34863c75a242bc6f43",
+      "kind": "zip",
+      "extract": {
+        "schematron/ubl/XRechnung-UBL-validation.xsl": "work/xrechnung-ubl.xslt",
+        "schematron/cii/XRechnung-CII-validation.xsl": "work/xrechnung-cii.xslt"
+      }
+    },
+    "peppol-ubl-sch": {
+      "description": "OpenPeppol BIS Billing 3.0 UBL Schematron source (no official compiled XSLT is published — compiled locally with SchXslt)",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/sch/PEPPOL-EN16931-UBL.sch",
+      "sha256": "5ddf3a2f6633147b20b7805df9902d825af1a984f10014fcee186d4170364b1d",
+      "kind": "file",
+      "target": "work/peppol-ubl.sch"
+    },
+    "peppol-example": {
+      "description": "OpenPeppol BIS Billing 3.0 base example invoice (valid fixture)",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/base-example.xml",
+      "sha256": "1b7cc3ff1834c8963f2c93f30f171b58002cbf0b2c52dc8765e7e83aebb9f7c9",
+      "kind": "file",
+      "target": "work/fixture-src/ubl-peppol-valid.xml"
+    },
+    "schxslt": {
+      "description": "SchXslt 1.10.1 XSLT-only distribution — Schematron→XSLT transpiler, runs under xslt3/Node (no Java; same version KoSIT uses)",
+      "upstream": "SchXslt/schxslt (Codeberg)",
+      "tag": "v1.10.1",
+      "license": "MIT",
+      "url": "https://codeberg.org/SchXslt/schxslt/releases/download/v1.10.1/schxslt-1.10.1-xslt-only.zip",
+      "sha256": "e141fabd4804a0ea527945dc7253dd38f9ef8957d9b219b94e13d16859cff7f0",
+      "kind": "zip",
+      "extractPrefix": { "schxslt-1.10.1/": "work/schxslt/" }
+    },
+    "saxonjs-browser": {
+      "description": "SaxonJS 2.7 official browser distribution — runtime-only build vendored unmodified into site/vendor/ with its license. NOT open source: free of charge under the SaxonJS Public License; the license text must be read end-to-end before launch (G3-3 user task).",
+      "upstream": "Saxonica (downloads.saxonica.com)",
+      "tag": "2.7",
+      "license": "SaxonJS Public License (free of charge, proprietary)",
+      "url": "https://downloads.saxonica.com/SaxonJS/2/SaxonJS-2.7.zip",
+      "sha256": "13cbd2e6eb0a80dcf64067e88cb5eab54a52c3a29e01fe0b156346895585845d",
+      "kind": "zip",
+      "extract": {
+        "saxon-js/SaxonJS2.rt.js": "../site/vendor/SaxonJS2.rt.js",
+        "saxon-js/LICENSE.txt": "../site/vendor/SAXONJS-LICENSE.txt"
+      }
+    },
+    "xrechnung-testsuite": {
+      "description": "KoSIT XRechnung test suite (official valid instances used as XRechnung fixtures)",
+      "upstream": "itplr-kosit/xrechnung-testsuite",
+      "tag": "v2026-01-31",
+      "license": "Apache-2.0",
+      "url": "https://github.com/itplr-kosit/xrechnung-testsuite/releases/download/v2026-01-31/xrechnung-3.0.2-testsuite-2026-01-31.zip",
+      "sha256": "a1e2b26d7de6db6903076d4a8548b66ca603e7b25ad17233202a73cfbfeb29ee",
+      "kind": "zip",
+      "extract": {
+        "instances/standard/01.01a-INVOICE_ubl.xml": "work/fixture-src/ubl-xrechnung-valid.xml",
+        "instances/standard/01.01a-INVOICE_uncefact.xml": "work/fixture-src/cii-xrechnung-valid.xml"
+      }
+    }
+  }
+}

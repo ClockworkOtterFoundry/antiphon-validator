@@ -1,0 +1,16 @@
+{
+  "name": "antiphon-validator",
+  "private": true,
+  "description": "Antiphon free e-invoice validator — fully client-side; this package holds the dev-time rule pipeline and smoke tests only",
+  "type": "module",
+  "scripts": {
+    "pipeline": "node pipeline/fetch.mjs && node pipeline/compile.mjs && node pipeline/fixtures.mjs",
+    "test": "node tests/run.mjs && node --test tests/worker.test.mjs",
+    "serve": "node -e \"import('node:http').then(({createServer})=>import('node:fs/promises').then(({readFile})=>{const t={html:'text/html',js:'text/javascript',css:'text/css',json:'application/json',xml:'application/xml'};createServer(async(q,s)=>{try{const p='site'+(q.url==='/'?'/index.html':q.url.split('?')[0]);const b=await readFile(p);s.setHeader('content-type',t[p.split('.').pop()]||'application/octet-stream');s.end(b)}catch{s.statusCode=404;s.end('not found')}}).listen(8080,()=>console.log('http://localhost:8080'))}))\""
+  },
+  "devDependencies": {
+    "fflate": "^0.8.2",
+    "saxon-js": "^2.7.0",
+    "xslt3": "^2.7.0"
+  }
+}

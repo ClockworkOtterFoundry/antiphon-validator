@@ -1,0 +1,44 @@
+{
+  "ubl-en16931": {
+    "valid": "ubl-en16931-valid.xml",
+    "invalid": "ubl-en16931-invalid.xml",
+    "expectedRuleIds": [
+      "BR-03",
+      "BR-CL-04",
+      "BR-CO-15",
+      "BR-CO-16"
+    ]
+  },
+  "ubl-peppol": {
+    "valid": "ubl-peppol-valid.xml",
+    "invalid": "ubl-peppol-invalid.xml",
+    "expectedRuleIds": [
+      "PEPPOL-EN16931-R003"
+    ]
+  },
+  "ubl-xrechnung": {
+    "valid": "ubl-xrechnung-valid.xml",
+    "invalid": "ubl-xrechnung-invalid.xml",
+    "expectedRuleIds": [
+      "BR-DE-15"
+    ]
+  },
+  "cii-en16931": {
+    "valid": "cii-en16931-valid.xml",
+    "invalid": "cii-en16931-invalid.xml",
+    "expectedRuleIds": [
+      "BR-03"
+    ]
+  },
+  "cii-xrechnung": {
+    "valid": "cii-xrechnung-valid.xml",
+    "invalid": "cii-xrechnung-invalid.xml",
+    "expectedRuleIds": [
+      "BR-DE-15"
+    ]
+  },
+  "cii-facturx": {
+    "reuses": "cii-en16931",
+    "note": "Factur-X EN 16931-profile XML validates via the CEN CII rule set; PDF extraction is v0.x backlog"
+  }
+}

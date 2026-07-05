@@ -1,0 +1,21 @@
+# Cloudflare Worker config — DEPLOY AT G3-3 ONLY (user present; account is a signup action).
+# Steps at launch:
+#   1. wrangler kv namespace create WAITLIST   → paste id below
+#   2. wrangler kv namespace create EVENTS     → paste id below
+#   3. wrangler secret put EXPORT_TOKEN        (long random string; used for /export/* reads)
+#   4. set ALLOWED_ORIGIN to the real site origin (e.g. https://antiphon.io)
+#   5. wrangler deploy && set site/config.js endpoints to this worker's URL
+name = "antiphon-validator-api"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+[vars]
+ALLOWED_ORIGIN = "http://localhost:8080"
+
+[[kv_namespaces]]
+binding = "WAITLIST"
+id = "FILL-AT-G3-3"
+
+[[kv_namespaces]]
+binding = "EVENTS"
+id = "FILL-AT-G3-3"
