@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Antiphon — free EN 16931 / XRechnung / Peppol e-invoice validator</title>
+  <meta name="description" content="Validate XRechnung, Peppol BIS Billing 3.0, Factur-X and EN 16931 e-invoices against the official rule sets — entirely in your browser. Nothing is uploaded.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90' font-family='Georgia,serif' fill='%23A81E29'>℟</text></svg>">
+</head>
+<body>
+
+<header class="masthead">
+  <span class="wordmark">ANTIPHON</span>
+  <span class="masthead-note">free e-invoice validator</span>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Validate an e&#8209;invoice.</h1>
+    <p class="lede">
+      Checks <strong>XRechnung</strong>, <strong>Peppol BIS Billing 3.0</strong>, <strong>Factur&#8209;X</strong>
+      and <strong>EN&nbsp;16931</strong> invoice XML against the official rule sets — entirely in your browser.
+      <em>Your invoice never leaves your machine.</em>
+    </p>
+  </section>
+
+  <section class="voice" id="call">
+    <div class="voice-mark" aria-hidden="true">℣</div>
+    <div class="voice-body">
+      <h2 class="voice-title">Your document</h2>
+      <textarea id="xml-input" spellcheck="false" autocomplete="off"
+        placeholder="Paste invoice XML here — or drop a file anywhere on this box."
+        aria-label="Invoice XML"></textarea>
+      <div class="controls">
+        <label class="file-label">
+          <input type="file" id="file-input" accept=".xml,text/xml,application/xml">
+          <span>Choose file…</span>
+        </label>
+        <label class="format-label" for="format-select">Format
+          <select id="format-select">
+            <option value="auto" selected>Auto-detect</option>
+          </select>
+        </label>
+        <button id="validate-btn" type="button">Validate</button>
+      </div>
+      <p class="quiet" id="engine-status" role="status">Loading rule sets…</p>
+    </div>
+  </section>
+
+  <section class="voice response" id="response" hidden>
+    <div class="voice-mark" aria-hidden="true">℟</div>
+    <div class="voice-body">
+      <h2 class="voice-title">The response</h2>
+      <div id="report"></div>
+      <div id="waitlist"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <details>
+    <summary>What this checks — and what it doesn’t (yet)</summary>
+    <ul>
+      <li>XML well-formedness, then the full <strong>Schematron business rules</strong> of the detected format:
+          the CEN EN 16931 rules plus the Peppol or XRechnung (KoSIT) layer where applicable.</li>
+      <li>The <strong>XSD schema layer is not run</strong> in this version. Schematron catches most real-world
+          rejections, but a schema-invalid document can produce confusing rule results.</li>
+      <li><strong>Factur-X/ZUGFeRD:</strong> paste the invoice XML. Extracting the XML from the PDF container
+          is coming; PDF files are not read yet.</li>
+      <li>Validated against the pinned official rule releases listed below — the same artifacts the
+          national platforms use.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Privacy</summary>
+    <p>Validation runs entirely in your browser (via the vendored SaxonJS runtime — see
+       <a href="vendor/SAXONJS-LICENSE.txt">license</a>). The document you paste or open is
+       <strong>never sent anywhere</strong>: no upload, no storage. You can verify this — open your
+       browser’s network tab and validate.</p>
+    <p>The hosted version may report anonymous usage counts to help us prioritize: which format was
+       validated, pass or fail, and which rule IDs fired — <strong>never any document content</strong>,
+       no cookies, no identifiers. If you join the waitlist, we store the email you give us and nothing else.</p>
+  </details>
+  <div id="versions" class="versions"></div>
+  <p class="quiet colophon">Antiphon — <em>the mandate calls; the response follows in the prescribed form.</em>
+     A native .NET SDK for EN&nbsp;16931 validation and generation is in the works.</p>
+</footer>
+
+<script src="vendor/SaxonJS2.rt.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
