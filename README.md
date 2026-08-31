@@ -1,24 +1,44 @@
 # Antiphon Validator
 
-Free, fully client-side EN 16931 e-invoice validator — the Gate 3 lead magnet. Paste or open
-invoice XML; the **pinned official Schematron rule sets** run in the browser via SaxonJS; nothing
-is ever uploaded. Built per the Gate 2 plan (`../docs/research/gate2-decisions.md` §e); this is
-phase G3-1 (validator core). Waitlist, telemetry, and rule explanations arrive in G3-2; deployment
-in G3-3.
+Free, **fully client-side** EN 16931 e-invoice validator. Paste or open invoice XML and the
+**pinned official Schematron rule sets** run entirely in your browser via SaxonJS — nothing is ever
+uploaded to a server. Covers EN 16931, XRechnung, Peppol BIS Billing 3.0, and Factur-X/ZUGFeRD
+(EN 16931 profile) documents in both UBL and CII syntax.
+
+It is the free companion to **Antiphon**, a commercial .NET SDK for EU e-invoicing compliance
+(generate / validate / convert EN 16931-family formats). The SDK is distributed separately via
+NuGet; this repository is the validator only.
+
+**Live site:** coming soon (not yet deployed).
+
+## Repository history
+
+This repository was extracted from Antiphon's private development monorepo, preserving the
+validator's real commit history. That history is a **single feature commit**
+(`feat: add validator backend with waitlist and telemetry endpoints`) — in the monorepo the
+validator was developed on one branch and squash-merged, so there are no separate per-phase
+commits. That one commit bundles both:
+
+- **Validator core** — format auto-detection, in-browser Schematron execution, SVRL rendering,
+  the pinned build pipeline, and the fixture corpus.
+- **Waitlist, telemetry, and rule explanations** — the `site/explanations.js` plain-language rule
+  text and the `worker/` Cloudflare Worker backend.
+
+`git log` shows the LICENSE commit, that feature commit, and the merge that joined them.
 
 ## Layout
 
 ```
 site/       the deployable static site (index.html, app.js, detect.js, explanations.js,
             config.js, styles.css, vendor/ SaxonJS runtime + license,
-            rules/ compiled SEFs + versions.json)
+            rules/ compiled SEFs + versions.json — SEFs are built by the pipeline, not committed)
 pipeline/   dev-time Node scripts: pins.json (pinned upstream artifacts + sha256),
             fetch.mjs, compile.mjs, fixtures.mjs
 fixtures/   per-format valid fixtures (official examples) + seeded-error mutations
             with known expected rule IDs (expected.json)
 tests/      headless smoke tests (shipped SEFs vs. every fixture) + worker unit tests
 worker/     Cloudflare Worker source for waitlist + content-free telemetry
-            (unit-tested here; DEPLOYED ONLY AT G3-3 — see worker/README.md)
+            (unit-tested here; deploy steps in worker/README.md and worker/wrangler.toml comments)
 ```
 
 ## Build
@@ -32,8 +52,8 @@ npm run serve      # http://localhost:8080
 
 The pipeline is **deterministic and pinned**: every upstream artifact in `pipeline/pins.json` is a
 release tag with a sha256; a hash mismatch or missing zip entry fails the build. When bumping a
-pin, first re-run `../docs/research/extract-xpath-inventory.py` against the new rule sources (the
-XPath-3.x/engine compatibility gate), then update tag + hash together.
+pin, re-check the new rule sources for XPath 3.x / engine-compatibility regressions before updating
+the tag and hash together.
 
 ## What runs where
 
@@ -63,32 +83,43 @@ Pinned versions live in `pipeline/pins.json` and are surfaced to users via
 - **No XSD layer** — well-formedness + Schematron only (libxml2-wasm is the v0.x candidate).
 - **No PDF input** — Factur-X/ZUGFeRD users paste the embedded XML; PDF extraction is v0.x backlog.
 
-## Waitlist, telemetry, explanations (G3-2)
+## Waitlist, telemetry, explanations
 
 - **Explanations:** `site/explanations.js` — hand-curated plain-language text for ~45 common rule
   IDs, shown above the official rule message. Tests enforce coverage of every fixture rule ID.
-  Grow the map using the telemetry rule-ID histogram once live.
 - **Waitlist:** rendered only *after* results (never a wall). Posts `{email, note}` to
   `config.waitlistEndpoint`; with the endpoint empty (this repo's default) the form shows a
   "preview build" notice and nothing is sent.
 - **Telemetry:** `navigator.sendBeacon` of `{format, outcome, fatals, warnings, rule-ID histogram}`
-  — no content, no cookies, no identifiers. Entirely dormant until `config.telemetryEndpoint`
-  is set at G3-3. Session counts come from the host's analytics (decided at launch), not from us.
-- **Backend:** `worker/` (Cloudflare Worker + 2 KV namespaces, token-gated exports for Gate 4
-  evaluation). Unit-tested via `npm test`; deployment steps in `worker/wrangler.toml` comments.
+  — no content, no cookies, no identifiers. Entirely dormant until `config.telemetryEndpoint` is
+  set at deploy time.
+- **Backend:** `worker/` (Cloudflare Worker + 2 KV namespaces, token-gated exports). Unit-tested
+  via `npm test`; `wrangler.toml` carries placeholder IDs only — real namespace IDs and the export
+  token are filled in at deploy time.
 
-## Licenses
+## Deploy notes
 
-- Rule artifacts: CEN (EUPL-1.2), KoSIT (Apache-2.0), OpenPeppol (Apache-2.0), SchXslt (MIT) —
-  all fetched at build time, never modified.
-- **SaxonJS** (`site/vendor/`): vendored unmodified with its license file. Free of charge but
-  **not open source** — ⚠️ **G3-3 launch checklist: read `site/vendor/SAXONJS-LICENSE.txt`
-  end-to-end before the site goes public.**
+Any static host works. Asset weight: compiled SEFs total ~18.5 MB raw (largest ~6.8 MB) + ~0.5 MB
+runtime; they are highly compressible JSON (a host that serves brotli automatically, e.g.
+Cloudflare Pages, handles this well) and are fetched in the background after first paint, so first
+contentful paint is instant. If real-world load times disappoint, lazy per-format loading is a
+small `site/app.js` change (at the cost of a network request at validate time for uncached
+formats).
 
-## Deploy notes (for G3-3)
+## Licensing
 
-Any static host works. Asset weight: SEFs total ~18.5 MB raw (largest 6.8 MB) + 0.5 MB runtime;
-they are highly compressible JSON (Cloudflare Pages serves brotli automatically) and are fetched
-in the background after first paint, so first contentful paint is instant. If real-world load
-times disappoint, lazy-per-format loading is a small app.js change (at the cost of a network
-request at validate time for uncached formats).
+The **MIT license** in this repository (`LICENSE`) covers **this project's own code** — everything
+under `site/` (except `site/vendor/`), `pipeline/`, `fixtures/`, `tests/`, and `worker/`.
+
+It does **not** relicense third-party material:
+
+- **`site/vendor/SaxonJS2.rt.js`** is the SaxonJS runtime, vendored **unmodified** under its own
+  separate license — see `site/vendor/SAXONJS-LICENSE.txt` (Saxonica License v1.0, June 2020).
+  SaxonJS is **free of charge but not open source**: unmodified binary redistribution as part of an
+  application is permitted, but reverse engineering is prohibited and it may not be re-hosted for
+  third-party download without Saxonica's permission. It is **not** covered by this repo's MIT
+  license.
+- **Rule artifacts** fetched at build time by the pipeline are used unmodified under their upstream
+  licenses: CEN EN 16931 Schematron (EUPL-1.2), KoSIT XRechnung (Apache-2.0), OpenPeppol BIS
+  (Apache-2.0), SchXslt (MIT). None are committed to this repository; the pipeline downloads them
+  from their pinned upstream releases.
