@@ -40,6 +40,7 @@ body {
   letter-spacing: 0.42em;
   font-weight: 600;
 }
+.wordmark-link { color: inherit; text-decoration: none; }
 .masthead-note {
   font-style: italic;
   color: var(--quill);
@@ -318,6 +319,7 @@ footer p { max-width: 46rem; }
   margin: 1.4rem 0;
 }
 .colophon { margin-top: 1.5rem; }
+.colophon a { color: inherit; }
 
 /* ---- motion ---- */
 @media (prefers-reduced-motion: no-preference) {
