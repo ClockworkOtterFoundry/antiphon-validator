@@ -3,7 +3,7 @@
 // beacon is ever sent. G3-3 (launch) sets these to the deployed Worker's URLs.
 export const config = {
   // POST { email, note? } — see ../worker/README.md
-  waitlistEndpoint: "",
+  waitlistEndpoint: "https://antiphon-validator-api.clockworkotterfoundry.workers.dev/waitlist",
   // POST content-free validation events { format, outcome, fatals, warnings, rules }
-  telemetryEndpoint: "",
+  telemetryEndpoint: "https://antiphon-validator-api.clockworkotterfoundry.workers.dev/event",
 };

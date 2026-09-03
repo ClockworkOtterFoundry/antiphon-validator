@@ -10,12 +10,12 @@ main = "worker.js"
 compatibility_date = "2026-07-01"
 
 [vars]
-ALLOWED_ORIGIN = "http://localhost:8080"
+ALLOWED_ORIGIN = "https://validator.clockworkotterfoundry.com"
 
 [[kv_namespaces]]
 binding = "WAITLIST"
-id = "FILL-AT-G3-3"
+id = "ddee2b5ebe0746bcaeb7cb5a056e178b"
 
 [[kv_namespaces]]
 binding = "EVENTS"
-id = "FILL-AT-G3-3"
+id = "0635e681abc14908b8e099353118565b"
