@@ -26,3 +26,16 @@ Covered by the repo suite: `npm test` in `validator/` runs `tests/worker.test.mj
 See the comment block at the top of `wrangler.toml`. After deploy, set the two endpoint URLs in
 `site/config.js` — until then the site's waitlist form shows a "preview build" notice and the
 telemetry beacon never fires.
+
+### Deployed 2026-09-03 (G3-3)
+
+- Live Worker URL: `https://antiphon-validator-api.clockworkotterfoundry.workers.dev`
+  (`/waitlist`, `/event`, `/export/waitlist`, `/export/events`). Plain `workers.dev` route; no
+  custom domain. `ALLOWED_ORIGIN` = `https://validator.clockworkotterfoundry.com`.
+- KV namespace IDs live in `wrangler.toml`.
+- Gotcha (wrangler 4.x): `wrangler kv key list --namespace-id <id>` reads *local* state and shows
+  `[]` for production writes — add `--remote` to inspect the deployed namespaces.
+- Running `wrangler secret put EXPORT_TOKEN` before the first `wrangler deploy` auto-creates the
+  Worker (non-interactive fallback answers "yes"); the subsequent `deploy` uploads the real code.
+- Follow-up: if `antiphon.io` is bought and pointed at the validator, update `ALLOWED_ORIGIN` here
+  and re-`wrangler deploy`, plus re-run `tools/sync-validator-public.sh`.
