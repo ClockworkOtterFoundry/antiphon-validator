@@ -4,6 +4,7 @@
 // (3) each seeded-error mutation reports exactly its expected rule IDs (among fatals).
 // Run: `npm test` from validator/.
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import SaxonJS from "saxon-js";
@@ -40,6 +41,16 @@ async function runRuleSet(ruleSetId, xmlText) {
 let pass = 0, fail = 0;
 const bad = (msg) => { console.error("  FAIL " + msg); fail++; };
 const good = (msg) => { console.log("  ok   " + msg); pass++; };
+
+// versions.json must never name a SEF that doesn't exist on disk — this is what would have
+// caught the peppol-cii gap (a manifest entry pointing at a file the pipeline never built)
+// at dev time instead of on the live site.
+console.log("manifest");
+for (const [id, rs] of Object.entries(versions.ruleSets)) {
+  const sefPath = join(root, "site", rs.sef);
+  if (existsSync(sefPath)) good(`${id}: sef exists (${rs.sef})`);
+  else bad(`${id}: versions.json names sef "${rs.sef}" but it does not exist on disk`);
+}
 
 for (const [format, spec] of Object.entries(expected)) {
   console.log(`\n${format}`);

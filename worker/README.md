@@ -10,6 +10,7 @@ Fits the VR-06 cost ceiling: Workers + KV free tier covers Gate 4 traffic comfor
 |---|---|---|
 | `POST /waitlist` | `{ email, note?, website? }` | `{ ts, note }` keyed by lowercased email (idempotent). `website` is a honeypot — non-empty gets a fake OK and stores nothing. |
 | `POST /event` | `{ format, outcome, fatals, warnings, rules }` | one append-only row per validation, 400-day TTL. Formats/outcomes allowlisted; rule IDs pattern-checked; anything with markup rejected. |
+| `POST /lead` | `{ name, contact, comments?, website? }` | **not stored** — emailed to the address in the `LEAD_RECIPIENT_EMAIL` secret via Resend's REST API (plain `fetch()`, no Cloudflare binding), subject `ANTIPHON LEAD - <date>`, body has `name`/`contact`/`comments` plus a full ISO 8601 timestamp. `website` is a honeypot — non-empty gets a fake OK and sends nothing. |
 | `GET /export/waitlist` | `Authorization: Bearer <EXPORT_TOKEN>` | → JSON rows (Gate 4: waitlist count) |
 | `GET /export/events` | same | → JSON rows (Gate 4: validations by format, pass/fail; rule-ID histogram for explanation curation) |
 
@@ -39,3 +40,28 @@ telemetry beacon never fires.
   Worker (non-interactive fallback answers "yes"); the subsequent `deploy` uploads the real code.
 - Follow-up: if `antiphon.io` is bought and pointed at the validator, update `ALLOWED_ORIGIN` here
   and re-`wrangler deploy`, plus re-run `tools/sync-validator-public.sh`.
+
+### `/lead` — ANT-V5 (Resend REST API, added but not yet deploy-verified)
+
+Cloudflare's own native Email Service (`send_email` binding) was the original design but
+turned out to require the paid Workers plan — this route instead POSTs to
+[Resend](https://resend.com)'s REST API (`https://api.resend.com/emails`) over a plain
+`fetch()`, which Workers can do on any plan. No Cloudflare `send_email` binding is used.
+
+- **Two secrets, never wrangler.toml values, never worker.js literals** — this whole
+  `validator/` directory, `wrangler.toml` included, is mirrored verbatim to the **public**
+  `antiphon-validator` repo by `tools/sync-validator-public.sh`, so nothing sensitive can
+  live in any tracked file here:
+  - `RESEND_API_KEY` — from the Resend dashboard.
+  - `LEAD_RECIPIENT_EMAIL` — the real recipient address.
+  `worker.js` fails closed with a 502 if either secret is unset, or if Resend's API itself
+  returns a non-`ok` response — never a silent send to an empty/wrong address or a
+  swallowed delivery failure.
+- Account-side, user-present setup required before this route can actually deliver:
+  1. Sign up for a free Resend account and verify a sending domain there (SPF/DKIM DNS
+     records — the usual process for any transactional email provider). The address
+     behind `LEAD_FROM_ADDRESS` below must belong to that verified domain.
+  2. `wrangler secret put RESEND_API_KEY`
+  3. `wrangler secret put LEAD_RECIPIENT_EMAIL`
+- `LEAD_FROM_ADDRESS` (a var in `wrangler.toml`) is a placeholder (`leads@clockworkotterfoundry.com`)
+  — update it to whatever address on the Resend-verified domain should appear as the sender.

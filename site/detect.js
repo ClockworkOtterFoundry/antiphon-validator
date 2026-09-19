@@ -56,6 +56,7 @@ export function detectFormat(xml) {
 
   if (c.includes("xrechnung")) return { format: `${syntax}-xrechnung`, confident: true, root, customization };
   if (syntax === "ubl" && c.includes("peppol")) return { format: "ubl-peppol", confident: true, root, customization };
+  if (syntax === "cii" && c.includes("peppol")) return { format: "cii-peppol", confident: true, root, customization };
   if (syntax === "cii" && (c.includes("factur-x") || c.includes("zugferd"))) return { format: "cii-facturx", confident: true, root, customization };
   if (c.startsWith("urn:cen.eu:en16931:2017")) return { format: `${syntax}-en16931`, confident: true, root, customization };
 

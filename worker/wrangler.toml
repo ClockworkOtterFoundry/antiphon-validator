@@ -11,6 +11,7 @@ compatibility_date = "2026-07-01"
 
 [vars]
 ALLOWED_ORIGIN = "https://validator.clockworkotterfoundry.com"
+LEAD_FROM_ADDRESS = "leads@clockworkotterfoundry.com"
 
 [[kv_namespaces]]
 binding = "WAITLIST"
@@ -19,3 +20,16 @@ id = "ddee2b5ebe0746bcaeb7cb5a056e178b"
 [[kv_namespaces]]
 binding = "EVENTS"
 id = "0635e681abc14908b8e099353118565b"
+
+# ANT-V5 — DEPLOY/CONFIGURE AT ANT-V5 launch, user present. Cloudflare's own native
+# Email Service was the original plan but requires the paid Workers plan — /lead sends
+# via Resend's REST API instead (resend.com, free tier, no base plan required), over a
+# plain fetch() from worker.js. No send_email binding is used or needed.
+#   1. Sign up for a free Resend account (resend.com) and verify a sending domain there
+#      (the usual SPF/DKIM DNS records — LEAD_FROM_ADDRESS below must belong to it).
+#   2. wrangler secret put RESEND_API_KEY          (from the Resend dashboard)
+#   3. wrangler secret put LEAD_RECIPIENT_EMAIL    (the real recipient)
+#      Both secrets — never wrangler.toml values, and never worker.js literals — because
+#      this whole validator/ directory, wrangler.toml included, is mirrored verbatim to
+#      the PUBLIC antiphon-validator repo by tools/sync-validator-public.sh.
+#   4. wrangler deploy

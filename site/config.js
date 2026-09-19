@@ -6,4 +6,6 @@ export const config = {
   waitlistEndpoint: "https://antiphon-validator-api.clockworkotterfoundry.workers.dev/waitlist",
   // POST content-free validation events { format, outcome, fatals, warnings, rules }
   telemetryEndpoint: "https://antiphon-validator-api.clockworkotterfoundry.workers.dev/event",
+  // POST { name, contact, comments? } — see ../worker/README.md
+  leadEndpoint: "https://antiphon-validator-api.clockworkotterfoundry.workers.dev/lead",
 };

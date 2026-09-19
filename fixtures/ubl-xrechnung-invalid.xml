@@ -9,6 +9,8 @@
     <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
     <cbc:Note>#ADU#Es gelten unsere Allgem. Geschäftsbedingungen, die Sie unter […] finden.</cbc:Note>
     <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+    <cac:OrderReference><cbc:ID/></cac:OrderReference>
+    <cac:AdditionalDocumentReference><cbc:ID>invoice-attachment</cbc:ID><cac:Attachment><cac:ExternalReference><cbc:URI>invoice.pdf</cbc:URI></cac:ExternalReference></cac:Attachment></cac:AdditionalDocumentReference>
     <cac:AccountingSupplierParty>
         <cac:Party>
             <cbc:EndpointID schemeID="EM">seller@email.de</cbc:EndpointID>

@@ -15,6 +15,9 @@ const responseSection = $("response");
 const report = $("report");
 
 const SVRL_NS = "http://purl.oclc.org/dsdl/svrl";
+const UBL_CAC_NS = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
+const UBL_CBC_NS = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
+const CII_RAM_NS = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100";
 
 let versions = null;
 const sefs = new Map(); // ruleSetId -> parsed SEF object
@@ -34,13 +37,21 @@ async function init() {
     formatSelect.append(opt);
   }
 
+  // ANT-STD-3: render the same metadata shape the SDK's RuleSetProvenance carries — the
+  // Antiphon-assigned rules-package version, the upstream tag, the pinned artifact sha256
+  // (short), and the licence — so a reader can cross-check SDK and validator on versions.
+  const shortSha = (s) => (s ? String(s).slice(0, 12) : "—");
   const versionLines = Object.values(versions.ruleSets)
-    .map((rs) => `${rs.label} — ${rs.upstream} @ ${rs.tag}`)
+    .map((rs) => {
+      const pkg = rs.rulesPackageVersion ? `Antiphon rules-package ${rs.rulesPackageVersion} · ` : "";
+      return `${rs.label} — ${pkg}${rs.upstream} @ ${rs.tag} · sha256 ${shortSha(rs.sha256)}… · ${rs.license}`;
+    })
     .filter((v, i, a) => a.indexOf(v) === i);
+  const bundle = versions.bundleRelease ? `bundle release ${esc(versions.bundleRelease)} · ` : "";
   $("versions").innerHTML =
     "<strong>Validated against:</strong><br>" +
     versionLines.map(esc).join("<br>") +
-    `<br>rule sets compiled ${esc(versions.generated.slice(0, 10))} · engine: SaxonJS ${esc(versions.tools["saxon-js"])} (runtime, local)`;
+    `<br>${bundle}rule sets compiled ${esc(versions.generated.slice(0, 10))} · engine: SaxonJS ${esc(versions.tools["saxon-js"])} (runtime, local)`;
 
   // Prefetch all SEFs now so that validating later makes zero network requests.
   const ids = Object.keys(versions.ruleSets);
@@ -131,12 +142,21 @@ async function validate() {
         "async"
       );
       svrls.push({ id, svrl: result.principalResult });
-      violations.push(...parseSvrl(result.principalResult, versions.ruleSets[id].label));
+      const parsed = parseSvrl(result.principalResult, versions.ruleSets[id].label);
+      // Tag each violation with the rule-set id and syntax binding it came from — needed by
+      // correctSaxonJsIbanModBug below to know which document elements to check, and cheaper
+      // than re-deriving it from `format` or the human-readable label.
+      for (const v of parsed) {
+        v.ruleSetId = id;
+        v.syntaxBinding = versions.ruleSets[id].syntaxBinding;
+      }
+      violations.push(...parsed);
     }
     status.textContent = "Rule sets ready. Validation runs entirely in your browser.";
 
-    renderReport(format, detected, violations, svrls);
-    sendTelemetry(format, violations);
+    const correctedViolations = correctSaxonJsIbanModBug(doc, violations, versions.tools["saxon-js"]);
+    renderReport(format, detected, correctedViolations, svrls);
+    sendTelemetry(format, correctedViolations);
   } finally {
     btn.disabled = false;
   }
@@ -178,6 +198,127 @@ function parseSvrl(svrlText, ruleSetLabel) {
   return out;
 }
 
+// ---------- SaxonJS large-integer `mod` bug workaround (ANT-V4) ----------
+// SaxonJS 2.7.0 (and, per the upstream issue thread, the 3.0.0-beta2 preview) computes the
+// XPath `mod` operator on xs:integer operands above JavaScript's 2^53 safe-integer boundary
+// using double-precision arithmetic, silently losing precision. Four assertions in the shipped
+// rule sets build a 20-60+ digit integer via string-join + `mod 97 = 1` to validate an IBAN's
+// checksum: BR-DE-19/BR-DE-20 (xrechnung-ubl, xrechnung-cii — the named xr:checkIBAN function)
+// and DE-R-019/DE-R-020 (peppol-ubl, both current v3.0.20 and N-1 v3.0.19 — inline formula).
+// SaxonJS gets the wrong answer for real (large) IBANs and reports a false-positive warning on
+// ones that are actually valid. Filed upstream, unfixed as of this writing:
+// https://saxonica.plan.io/issues/7180
+//
+// Delete this whole section (and its call site in validate()) once a saxon-js/xslt3 release
+// fixes that issue. SAXON_JS_MOD_BUG_VERSIONS gates the correction to the confirmed-buggy
+// engine version(s) — bump the pin and drop the old version from this set (or just empty it)
+// once a fix is adopted, and the workaround stops applying itself automatically.
+const SAXON_JS_MOD_BUG_VERSIONS = new Set(["2.7.0"]);
+
+const IBAN_MOD_BUG_RULES = {
+  "BR-DE-19": "payee",
+  "BR-DE-20": "payer",
+  "DE-R-019": "payee",
+  "DE-R-020": "payer",
+};
+
+/**
+ * Independently recompute an IBAN's MOD-97 checksum with BigInt (exact/arbitrary-precision —
+ * unlike Number, string-to-BigInt and `%` never round through a 53-bit mantissa, which is
+ * exactly where SaxonJS's own `mod` on xs:integer goes wrong per Saxonica issue #7180).
+ * Faithful port of the identical structural-regex + rearrange + codepoint-map + mod-97 formula
+ * read from xr:checkIBAN (xrechnung-ubl.xslt / xrechnung-cii.xslt) and the inline DE-R-019/020
+ * test= expressions (peppol-ubl.sch). Returns true/false, or null when the text isn't
+ * IBAN-shaped — callers must never treat null as "valid".
+ */
+function ibanMod97IsValid(raw) {
+  if (typeof raw !== "string") return null;
+  // XSD/XPath regex `\s` (as used by the upstream `replace($iban, '([\s])', '')` step this
+  // mirrors) is ASCII-only — space/tab/CR/LF — unlike JS's Unicode-aware `\s`, which also
+  // strips U+00A0 and other Unicode spaces. Using JS's wider class here would make a genuinely
+  // malformed IBAN (containing e.g. a stray NBSP) look clean and pass structurally when the
+  // upstream rule — which does NOT strip that character — still correctly reports it as bad.
+  const cleaned = raw.replace(/[ \t\n\r]+/g, "");
+  if (!/^[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{0,30}$/.test(cleaned)) return null;
+  const rearranged = cleaned.slice(4) + cleaned.slice(0, 2).toUpperCase() + cleaned.slice(2, 4);
+  let digits = "";
+  for (const ch of rearranged) {
+    const cp = ch.codePointAt(0);
+    digits += cp > 64 ? String(cp - 55) : String(cp - 48);
+  }
+  return BigInt(digits) % 97n === 1n;
+}
+
+/**
+ * Resolve an SVRL `location` value — a "/"-separated path of `Q{namespace}LocalName[position]`
+ * steps (Saxon/SchXslt's EQName location format) — to the DOM element it names, walking down
+ * from the document root. Returns null (never guesses) if the path doesn't parse or a step has
+ * no matching child, e.g. because the document doesn't actually match the shape we expect.
+ */
+function resolveByLocation(doc, location) {
+  if (!location) return null;
+  let node = doc;
+  for (const step of location.split("/").filter(Boolean)) {
+    const m = step.match(/^Q\{([^}]*)\}([^[]+)\[(\d+)\]$/);
+    if (!m || !node.childNodes) return null;
+    const [, ns, local, posStr] = m;
+    const position = Number(posStr);
+    const matches = [...node.childNodes].filter((n) => n.nodeType === 1 && n.namespaceURI === ns && n.localName === local);
+    node = matches[position - 1];
+    if (!node) return null;
+  }
+  return node;
+}
+
+/**
+ * The IBAN text within one specific PaymentMeans-like context element — the exact element the
+ * SVRL violation's `location` points at (UBL cac:PaymentMeans, CII
+ * ram:SpecifiedTradeSettlementPaymentMeans) — never the whole document. Scoping to that single
+ * context is what makes this safe when a document has more than one PaymentMeans block (e.g. a
+ * valid code-58 credit transfer next to an invalid code-59 direct debit): each violation is
+ * checked only against the account inside its own reported context, never a sibling's.
+ */
+function ibanTextForContext(contextEl, syntaxBinding, role) {
+  if (!contextEl) return null;
+  if (syntaxBinding === "ubl") {
+    const account =
+      role === "payee"
+        ? contextEl.getElementsByTagNameNS(UBL_CAC_NS, "PayeeFinancialAccount")[0]
+        : contextEl.getElementsByTagNameNS(UBL_CAC_NS, "PaymentMandate")[0]?.getElementsByTagNameNS(UBL_CAC_NS, "PayerFinancialAccount")[0];
+    const idEl = account ? account.getElementsByTagNameNS(UBL_CBC_NS, "ID")[0] : undefined;
+    return idEl ? idEl.textContent : null;
+  }
+  if (syntaxBinding === "cii") {
+    const tag = role === "payee" ? "PayeePartyCreditorFinancialAccount" : "PayerPartyDebtorFinancialAccount";
+    const account = contextEl.getElementsByTagNameNS(CII_RAM_NS, tag)[0];
+    const idEl = account ? account.getElementsByTagNameNS(CII_RAM_NS, "IBANID")[0] : undefined;
+    return idEl ? idEl.textContent : null;
+  }
+  return null;
+}
+
+/**
+ * Drop BR-DE-19/20 and DE-R-019/20 warnings that are false positives caused by the SaxonJS
+ * `mod` bug above — and only those. For each violation with an affected rule ID, resolves the
+ * exact PaymentMeans-like element SVRL says it concerns (from the violation's own `location`,
+ * not by pairing/counting elsewhere in the document — a prior version of this function did that
+ * and could mis-pair a valid account with a different, genuinely-invalid violation when a
+ * document had more than one PaymentMeans block), extracts that context's IBAN text, and drops
+ * the violation only when the independent recomputation confirms it's actually MOD-97-valid. If
+ * the location can't be resolved, no IBAN-shaped text is found there, or the independent check
+ * agrees it's invalid, the violation is left exactly as SaxonJS reported it.
+ */
+function correctSaxonJsIbanModBug(doc, violations, engineVersion) {
+  if (engineVersion && !SAXON_JS_MOD_BUG_VERSIONS.has(engineVersion)) return violations;
+  return violations.filter((v) => {
+    const role = IBAN_MOD_BUG_RULES[v.id];
+    if (!role) return true;
+    const contextEl = resolveByLocation(doc, v.location);
+    const ibanText = ibanTextForContext(contextEl, v.syntaxBinding, role);
+    return ibanMod97IsValid(ibanText) !== true;
+  });
+}
+
 // ---------- rendering ----------
 function renderReport(format, detected, violations, svrls) {
   const fatals = violations.filter((v) => v.severity === "fatal");
@@ -195,9 +336,20 @@ function renderReport(format, detected, violations, svrls) {
     formatSelect.value !== "auto" ? "chosen manually"
     : detected.confident ? "auto-detected"
     : "auto-detect was unsure — defaulted to this; override above if wrong";
+  const shortSha = (s) => (s ? String(s).slice(0, 12) : "—");
   parts.push(
     `<p class="report-meta">Format: ${esc(versions.formats[format].label)} (${detectNote})<br>` +
       `Rules: ${ruleSetIds.map((id) => esc(versions.ruleSets[id].label)).join(" + ")}<br>` +
+      // ANT-STD-3: per-rule-set version provenance mirrored from the SDK (rules-package version,
+      // upstream tag, pinned-artifact sha256, licence — all already in versions.json, now shown).
+      ruleSetIds
+        .map((id) => {
+          const rs = versions.ruleSets[id];
+          const pkg = rs.rulesPackageVersion ? `rules-package ${esc(rs.rulesPackageVersion)}, ` : "";
+          return `${esc(rs.label)}: ${pkg}${esc(rs.upstream)} @ ${esc(rs.tag)} · sha256 ${esc(shortSha(rs.sha256))}… · ${esc(rs.license)}`;
+        })
+        .join("<br>") +
+      `<br>` +
       svrls.map((s) => `<a href="${svrlBlobUrl(s.svrl)}" download="${esc(s.id)}.svrl.xml">Download raw SVRL — ${esc(versions.ruleSets[s.id].label)}</a>`).join(" · ") +
       `</p>`
   );
@@ -275,6 +427,61 @@ async function submitWaitlist(e) {
     if (!res.ok) throw new Error("HTTP " + res.status);
     waitlistState = "done";
     renderWaitlist();
+  } catch {
+    statusEl.textContent = "That didn’t go through — please try again in a moment.";
+  }
+}
+
+// ---------- lead form (commercial licensing inquiries — visible from page load, not gated on a validation run) ----------
+let leadState = "open"; // open | done
+renderLeadForm(); // independent of rule-set loading — the lead form has nothing to validate;
+                  // called here (after leadState's own declaration has run), not at the top of the
+                  // module, since a module's `let` bindings are in the temporal dead zone until the
+                  // line that declares them actually executes.
+function renderLeadForm() {
+  const host = $("lead-form");
+  if (leadState === "done") {
+    host.innerHTML = `<p class="waitlist-thanks">Thanks — we’ll be in touch.</p>`;
+    return;
+  }
+  host.innerHTML =
+    `<p class="viol-msg">Interested in commercial licensing? Evaluation mode is live and free today —
+     commercial licensing isn’t purchasable yet, but early inquiries get priority pricing. Tell us
+     a bit about your use case and we’ll follow up.</p>` +
+    `<form id="lead-submit-form">` +
+    `<input type="text" id="lead-name" required maxlength="200" placeholder="Name" aria-label="Name">` +
+    `<input type="text" id="lead-contact" required maxlength="200" placeholder="Email or other contact info" aria-label="Contact info">` +
+    `<textarea id="lead-comments" maxlength="1000" placeholder="What are you looking to do? (optional)" aria-label="Optional comments"></textarea>` +
+    `<input type="text" id="lead-website" tabindex="-1" autocomplete="off" aria-hidden="true">` +
+    `<button type="submit">Send</button>` +
+    `</form>` +
+    `<p class="quiet" id="lead-status"></p>`;
+  $("lead-submit-form").addEventListener("submit", submitLead);
+}
+
+async function submitLead(e) {
+  e.preventDefault();
+  const statusEl = $("lead-status");
+  if (!config.leadEndpoint) {
+    statusEl.textContent = "This is a preview build — contact isn’t wired up yet.";
+    return;
+  }
+  const body = JSON.stringify({
+    name: $("lead-name").value.trim(),
+    contact: $("lead-contact").value.trim(),
+    comments: $("lead-comments").value.trim(),
+    website: $("lead-website").value, // honeypot — humans leave it empty
+  });
+  statusEl.textContent = "Sending…";
+  try {
+    const res = await fetch(config.leadEndpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    leadState = "done";
+    renderLeadForm();
   } catch {
     statusEl.textContent = "That didn’t go through — please try again in a moment.";
   }

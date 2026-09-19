@@ -15,7 +15,34 @@ function kvMock() {
   };
 }
 
-const makeEnv = () => ({ WAITLIST: kvMock(), EVENTS: kvMock(), EXPORT_TOKEN: "test-token", ALLOWED_ORIGIN: "https://example.test" });
+// /lead sends via a plain fetch() to Resend's REST API (no Cloudflare-native binding) —
+// __fetch is worker.js's own test-only injection seam, standing in for the real global
+// fetch so no test makes a real network call.
+function resendFetchMock({ ok = true } = {}) {
+  const calls = [];
+  return {
+    calls,
+    async fetch(url, init) {
+      calls.push({ url, init });
+      return { ok, status: ok ? 200 : 500, async json() { return ok ? { id: "test-id" } : { message: "boom" }; } };
+    },
+  };
+}
+
+const makeEnv = () => {
+  const resend = resendFetchMock();
+  return {
+    WAITLIST: kvMock(),
+    EVENTS: kvMock(),
+    EXPORT_TOKEN: "test-token",
+    ALLOWED_ORIGIN: "https://example.test",
+    RESEND_API_KEY: "test-resend-key",
+    __fetch: resend.fetch,
+    __resendCalls: resend.calls, // test-only convenience accessor, not read by worker.js
+    LEAD_FROM_ADDRESS: "leads@example.test",
+    LEAD_RECIPIENT_EMAIL: "recipient@example.test",
+  };
+};
 const post = (path, body) =>
   new Request("https://api.test" + path, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
 
@@ -87,6 +114,105 @@ test("export: requires bearer token; returns stored rows", async () => {
   const body = await res.json();
   assert.equal(body.count, 1);
   assert.equal(body.rows[0].key, "email:dev@co.eu");
+});
+
+test("lead: sends an email with the submitted fields, no IP/user-agent", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(
+    post("/lead", { name: "Dev Person", contact: "dev@company.eu", comments: "Need XRechnung CII generation." }),
+    env
+  );
+  assert.equal(res.status, 200);
+  assert.equal(env.__resendCalls.length, 1);
+  const call = env.__resendCalls[0];
+  assert.equal(call.url, "https://api.resend.com/emails");
+  assert.equal(call.init.headers.Authorization, "Bearer test-resend-key");
+  const msg = JSON.parse(call.init.body);
+  assert.deepEqual(msg.to, ["recipient@example.test"]);
+  assert.match(msg.subject, /^ANTIPHON LEAD - \d{4}-\d{2}-\d{2}$/);
+  assert.match(msg.text, /Dev Person/);
+  assert.match(msg.text, /dev@company\.eu/);
+  assert.match(msg.text, /Need XRechnung CII generation\./);
+  assert.doesNotMatch(msg.text.toLowerCase(), /user-agent|ip address|x-forwarded-for/);
+});
+
+test("lead: rejects missing name/contact", async () => {
+  const env = makeEnv();
+  let res = await worker.fetch(post("/lead", { name: "", contact: "dev@co.eu" }), env);
+  assert.equal(res.status, 400);
+  res = await worker.fetch(post("/lead", { name: "Dev", contact: "" }), env);
+  assert.equal(res.status, 400);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: rejects markup in comments (content guard)", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(
+    post("/lead", { name: "Dev", contact: "dev@co.eu", comments: "<Invoice>secret</Invoice>" }),
+    env
+  );
+  assert.equal(res.status, 400);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: honeypot gets fake OK, sends nothing", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(
+    post("/lead", { name: "Bot", contact: "bot@spam.com", website: "http://spam" }),
+    env
+  );
+  assert.equal(res.status, 200);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: honeypot still catches a non-string value", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(
+    post("/lead", { name: "Bot", contact: "bot@spam.com", website: ["spam"] }),
+    env
+  );
+  assert.equal(res.status, 200);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: rejects a JSON null body instead of throwing", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(
+    new Request("https://api.test/lead", { method: "POST", body: "null", headers: { "content-type": "application/json" } }),
+    env
+  );
+  assert.equal(res.status, 400);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: rejects non-string name/contact instead of stringifying them", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(post("/lead", { name: {}, contact: {} }), env);
+  assert.equal(res.status, 400);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: fails closed (502) when LEAD_RECIPIENT_EMAIL secret is unset, never sends", async () => {
+  const env = makeEnv();
+  delete env.LEAD_RECIPIENT_EMAIL;
+  const res = await worker.fetch(post("/lead", { name: "Dev", contact: "dev@co.eu" }), env);
+  assert.equal(res.status, 502);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: fails closed (502) when RESEND_API_KEY secret is unset, never sends", async () => {
+  const env = makeEnv();
+  delete env.RESEND_API_KEY;
+  const res = await worker.fetch(post("/lead", { name: "Dev", contact: "dev@co.eu" }), env);
+  assert.equal(res.status, 502);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("lead: returns 502 when Resend's API responds with a non-ok status", async () => {
+  const env = makeEnv();
+  env.__fetch = resendFetchMock({ ok: false }).fetch;
+  const res = await worker.fetch(post("/lead", { name: "Dev", contact: "dev@co.eu" }), env);
+  assert.equal(res.status, 502);
 });
 
 test("CORS: preflight allowed, origin from env", async () => {

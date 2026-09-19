@@ -59,6 +59,7 @@ export const EXPLANATIONS = {
   "BR-DE-6": "XRechnung requires a seller contact email address.",
   "BR-DE-15": "XRechnung requires a BuyerReference. For invoices to German public-sector buyers this is the Leitweg-ID the buyer gave you — without it the invoice will be rejected.",
   "BR-DE-16": "XRechnung requires the seller's VAT identifier or tax number (at least one).",
+  "BR-TMP-2": "XRechnung requires the external document reference (BT-124, the location of an attached supporting document) to be an absolute URL with a valid scheme, e.g. \"https://...\" — a bare filename like \"invoice.pdf\" is rejected as of XRechnung Schematron 2.6.0.",
 
   // --- Peppol BIS Billing 3.0 (PEPPOL-EN16931-R*) ---
   "PEPPOL-EN16931-R001": "Peppol invoices must state the business process (ProfileID), normally urn:fdc:peppol.eu:2017:poacc:billing:01:1.0.",

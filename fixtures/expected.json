@@ -20,7 +20,8 @@
     "valid": "ubl-xrechnung-valid.xml",
     "invalid": "ubl-xrechnung-invalid.xml",
     "expectedRuleIds": [
-      "BR-DE-15"
+      "BR-DE-15",
+      "BR-TMP-2"
     ]
   },
   "cii-en16931": {
@@ -34,7 +35,15 @@
     "valid": "cii-xrechnung-valid.xml",
     "invalid": "cii-xrechnung-invalid.xml",
     "expectedRuleIds": [
-      "BR-DE-15"
+      "BR-DE-15",
+      "BR-TMP-2"
+    ]
+  },
+  "cii-peppol": {
+    "valid": "cii-peppol-valid.xml",
+    "invalid": "cii-peppol-invalid.xml",
+    "expectedRuleIds": [
+      "PEPPOL-EN16931-R003"
     ]
   },
   "cii-facturx": {

@@ -95,6 +95,7 @@
             </ram:SpecifiedLineTradeSettlement>
         </ram:IncludedSupplyChainTradeLineItem>
         <ram:ApplicableHeaderTradeAgreement>
+            <ram:AdditionalReferencedDocument><ram:IssuerAssignedID>invoice-attachment</ram:IssuerAssignedID><ram:URIID>invoice.pdf</ram:URIID><ram:TypeCode>916</ram:TypeCode></ram:AdditionalReferencedDocument>
             <ram:SellerTradeParty>
                 <ram:Name>[Seller name]</ram:Name>
                 <ram:Description>123/456/7890, HRA-Eintrag in […]</ram:Description>

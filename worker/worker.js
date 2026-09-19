@@ -1,15 +1,22 @@
-// Antiphon validator backend — Cloudflare Worker (waitlist + content-free telemetry).
+// Antiphon validator backend — Cloudflare Worker (waitlist + content-free telemetry + lead form).
 // Written in G3-2; DEPLOYED ONLY IN G3-3 (account setup is a user-present action).
+// /lead added in ANT-V5.
 //
 // Privacy by design, matching the site's on-page statement:
 //   - /waitlist stores exactly { email, note, ts } — no IP, no user agent.
 //   - /event stores exactly the content-free fields the beacon sends — format, outcome,
 //     counts, rule-ID histogram. Anything that smells like document content is rejected.
+//   - /lead sends (never stores) exactly { name, contact, comments, ts } by email — no IP,
+//     no user agent, same as the above.
 //   - Exports are read-only and token-gated; they exist so Gate 4 evidence
 //     (waitlist count, sessions-by-format, pass/fail ratio) can be evaluated.
 //
-// Bindings (wrangler.toml): KV namespaces WAITLIST and EVENTS; vars ALLOWED_ORIGIN;
-// secret EXPORT_TOKEN (set via `wrangler secret put EXPORT_TOKEN`).
+// Bindings (wrangler.toml): KV namespaces WAITLIST and EVENTS; vars ALLOWED_ORIGIN,
+// LEAD_FROM_ADDRESS; secrets EXPORT_TOKEN, RESEND_API_KEY, and LEAD_RECIPIENT_EMAIL (set
+// via `wrangler secret put <name>` — the latter two specifically must never be
+// wrangler.toml values, since this file is mirrored verbatim to the public
+// antiphon-validator repo). /lead emails via Resend's REST API over a plain fetch(), not
+// a Cloudflare-native binding — Cloudflare's own Email Service requires Workers Paid.
 
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/;
 const RULE_ID_RE = /^[A-Za-z0-9._:-]{2,64}$/;
@@ -41,6 +48,7 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/waitlist") return waitlist(request, env);
     if (request.method === "POST" && url.pathname === "/event") return event(request, env);
+    if (request.method === "POST" && url.pathname === "/lead") return lead(request, env);
     if (request.method === "GET" && url.pathname === "/export/waitlist") return exportKv(request, env, env.WAITLIST, "email:");
     if (request.method === "GET" && url.pathname === "/export/events") return exportKv(request, env, env.EVENTS, "ev:");
 
@@ -91,6 +99,69 @@ async function event(request, env) {
     expirationTtl: 60 * 60 * 24 * 400, // keep ~13 months; Gate 4 reads at 60 days
   });
   return new Response(null, { status: 204, headers: cors(env) });
+}
+
+async function lead(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid JSON" }, 400, env); }
+  if (!body || typeof body !== "object") return json({ error: "invalid JSON" }, 400, env);
+
+  // Honeypot: bots fill every field. Pretend success, send nothing. Coerce first — a
+  // non-string honeypot value (e.g. an array) is exactly the kind of malformed input a bot
+  // (or a hand-crafted request) sends, and must still be caught, not waved through.
+  if (body.website != null && String(body.website).trim() !== "") return json({ ok: true }, 200, env);
+
+  if (typeof body.name !== "string" || typeof body.contact !== "string") return json({ error: "invalid input" }, 400, env);
+  if (body.comments !== undefined && body.comments !== null && typeof body.comments !== "string")
+    return json({ error: "invalid input" }, 400, env);
+
+  const name = body.name.trim().slice(0, 200);
+  const contact = body.contact.trim().slice(0, 200);
+  const comments = String(body.comments ?? "").trim().slice(0, 1000);
+  if (!name) return json({ error: "invalid name" }, 400, env);
+  if (!contact) return json({ error: "invalid contact" }, 400, env);
+  if (smellsLikeContent(name) || smellsLikeContent(contact) || smellsLikeContent(comments))
+    return json({ error: "invalid input" }, 400, env);
+
+  // Body intentionally omits IP address and user agent — explicit product decision.
+  const ts = new Date().toISOString();
+  const text =
+    `Name: ${name}\n` +
+    `Contact: ${contact}\n` +
+    `Comments: ${comments || "(none)"}\n` +
+    `Sent: ${ts}\n`;
+
+  // RESEND_API_KEY and LEAD_RECIPIENT_EMAIL are wrangler secrets, never wrangler.toml
+  // values: this whole validator/ directory is mirrored verbatim to the PUBLIC
+  // antiphon-validator repo by tools/sync-validator-public.sh, so neither may exist in
+  // any tracked file. Set via `wrangler secret put <name>`. Cloudflare's own native
+  // Email Service was tried first (ANT-V5) but requires the paid Workers plan — this
+  // sends via Resend's REST API instead (resend.com, free tier, no base plan) over a
+  // plain fetch(), which Workers can always do regardless of plan. `env.__fetch` is a
+  // test-only injection seam (defaults to the real global `fetch`).
+  if (!env.RESEND_API_KEY || !env.LEAD_RECIPIENT_EMAIL) return json({ error: "not configured" }, 502, env);
+
+  const doFetch = env.__fetch || fetch;
+  try {
+    const res = await doFetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.LEAD_FROM_ADDRESS || "leads@clockworkotterfoundry.com",
+        to: [env.LEAD_RECIPIENT_EMAIL],
+        subject: `ANTIPHON LEAD - ${ts.slice(0, 10)}`,
+        text,
+      }),
+    });
+    if (!res.ok) return json({ error: "send failed" }, 502, env);
+  } catch {
+    return json({ error: "send failed" }, 502, env);
+  }
+
+  return json({ ok: true }, 200, env);
 }
 
 async function exportKv(request, env, kv, prefix) {

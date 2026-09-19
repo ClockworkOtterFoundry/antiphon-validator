@@ -11,7 +11,25 @@
       "kind": "zip",
       "extract": {
         "xslt/EN16931-UBL-validation.xslt": "work/cen-ubl.xslt",
-        "examples/ubl-tc434-example1.xml": "work/fixture-src/ubl-en16931-valid.xml"
+        "examples/ubl-tc434-example1.xml": "work/fixture-src/ubl-en16931-valid.xml",
+        "examples/BIS3_Invoice_negativ.XML": "work/fixture-src/conformance/cen-ubl/BIS3_Invoice_negativ.XML",
+        "examples/BIS3_Invoice_positive.XML": "work/fixture-src/conformance/cen-ubl/BIS3_Invoice_positive.XML",
+        "examples/FT G2G_TD01 con Allegato, Bonifico e Split Payment.xml": "work/fixture-src/conformance/cen-ubl/FT-G2G-TD01.xml",
+        "examples/guide-example1.xml": "work/fixture-src/conformance/cen-ubl/guide-example1.xml",
+        "examples/guide-example2.xml": "work/fixture-src/conformance/cen-ubl/guide-example2.xml",
+        "examples/guide-example3.xml": "work/fixture-src/conformance/cen-ubl/guide-example3.xml",
+        "examples/issue116.xml": "work/fixture-src/conformance/cen-ubl/issue116.xml",
+        "examples/sample-discount-price.xml": "work/fixture-src/conformance/cen-ubl/sample-discount-price.xml",
+        "examples/ubl-tc434-creditnote1.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-creditnote1.xml",
+        "examples/ubl-tc434-example2.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example2.xml",
+        "examples/ubl-tc434-example3.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example3.xml",
+        "examples/ubl-tc434-example4.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example4.xml",
+        "examples/ubl-tc434-example5.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example5.xml",
+        "examples/ubl-tc434-example6.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example6.xml",
+        "examples/ubl-tc434-example7.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example7.xml",
+        "examples/ubl-tc434-example8.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example8.xml",
+        "examples/ubl-tc434-example9.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example9.xml",
+        "examples/ubl-tc434-example10.xml": "work/fixture-src/conformance/cen-ubl/ubl-tc434-example10.xml"
       }
     },
     "cen-cii": {
@@ -24,16 +42,30 @@
       "kind": "zip",
       "extract": {
         "xslt/EN16931-CII-validation.xslt": "work/cen-cii.xslt",
-        "examples/CII_example1.xml": "work/fixture-src/cii-en16931-valid.xml"
+        "examples/CII_example1.xml": "work/fixture-src/cii-en16931-valid.xml",
+        "examples/CII-BR-CO-10-RoundingIssue.xml": "work/fixture-src/conformance/cen-cii/CII-BR-CO-10-RoundingIssue.xml",
+        "examples/CII_business_example_01.xml": "work/fixture-src/conformance/cen-cii/CII_business_example_01.xml",
+        "examples/CII_business_example_02.xml": "work/fixture-src/conformance/cen-cii/CII_business_example_02.xml",
+        "examples/CII_business_example_Z.xml": "work/fixture-src/conformance/cen-cii/CII_business_example_Z.xml",
+        "examples/CII_example2.xml": "work/fixture-src/conformance/cen-cii/CII_example2.xml",
+        "examples/CII_example3.xml": "work/fixture-src/conformance/cen-cii/CII_example3.xml",
+        "examples/CII_example4.xml": "work/fixture-src/conformance/cen-cii/CII_example4.xml",
+        "examples/CII_example5.xml": "work/fixture-src/conformance/cen-cii/CII_example5.xml",
+        "examples/CII_example6.xml": "work/fixture-src/conformance/cen-cii/CII_example6.xml",
+        "examples/CII_example7.xml": "work/fixture-src/conformance/cen-cii/CII_example7.xml",
+        "examples/CII_example8.xml": "work/fixture-src/conformance/cen-cii/CII_example8.xml",
+        "examples/CII_example9.xml": "work/fixture-src/conformance/cen-cii/CII_example9.xml",
+        "examples/XRechnung-O.xml": "work/fixture-src/conformance/cen-cii/XRechnung-O.xml",
+        "examples/huf_example_cii.xml": "work/fixture-src/conformance/cen-cii/huf_example_cii.xml"
       }
     },
     "xrechnung-schematron": {
-      "description": "KoSIT XRechnung Schematron 2.5.0 for XRechnung 3.0.2 (official compiled XSL, SchXslt-built upstream)",
+      "description": "KoSIT XRechnung Schematron 2.6.0 for XRechnung 3.0.2 (official compiled XSL, SchXslt-built upstream)",
       "upstream": "itplr-kosit/xrechnung-schematron",
-      "tag": "v2.5.0",
+      "tag": "v2.6.0",
       "license": "Apache-2.0",
-      "url": "https://github.com/itplr-kosit/xrechnung-schematron/releases/download/v2.5.0/xrechnung-3.0.2-schematron-2.5.0.zip",
-      "sha256": "a0f3d82737759bee8591c298ff24983a8f1c667f85e45a34863c75a242bc6f43",
+      "url": "https://github.com/itplr-kosit/xrechnung-schematron/releases/download/v2.6.0/xrechnung-3.0.2-schematron-2.6.0.zip",
+      "sha256": "ca5e07afd04e72cd283d581590ffff3a15f4aac9d2f40c993345d78e67ea22b4",
       "kind": "zip",
       "extract": {
         "schematron/ubl/XRechnung-UBL-validation.xsl": "work/xrechnung-ubl.xslt",
@@ -50,6 +82,16 @@
       "kind": "file",
       "target": "work/peppol-ubl.sch"
     },
+    "peppol-cii-sch": {
+      "description": "OpenPeppol BIS Billing 3.0 CII Schematron source (no official compiled XSLT is published — compiled locally with SchXslt)",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/sch/PEPPOL-EN16931-CII.sch",
+      "sha256": "a15bea71add713a425f0fab0043fdd5b03d54a62d27c4252ed6d8a4863da218d",
+      "kind": "file",
+      "target": "work/peppol-cii.sch"
+    },
     "peppol-example": {
       "description": "OpenPeppol BIS Billing 3.0 base example invoice (valid fixture)",
       "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
@@ -59,6 +101,86 @@
       "sha256": "1b7cc3ff1834c8963f2c93f30f171b58002cbf0b2c52dc8765e7e83aebb9f7c9",
       "kind": "file",
       "target": "work/fixture-src/ubl-peppol-valid.xml"
+    },
+    "peppol-example-allowance": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — Allowance-example.xml (rules/examples/, v3.0.20)",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/Allowance-example.xml",
+      "sha256": "aa3df18eb8c634624637eb229891d989c5cfb7cd0d08894ff8e58c58f247ea5b",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/Allowance-example.xml"
+    },
+    "peppol-example-vat-s": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — Vat-category-S.xml",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/Vat-category-S.xml",
+      "sha256": "59f96ae9a77ed3eda4ac17f499994fbd1b050432edf3bb8c117d7f3bca8d5f95",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/Vat-category-S.xml"
+    },
+    "peppol-example-vat-e": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — vat-category-E.xml",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/vat-category-E.xml",
+      "sha256": "4743f9dbe958cdb9f7871faa06eef003b4fea32673861a69b523c5eca52a780b",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/vat-category-E.xml"
+    },
+    "peppol-example-vat-o": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — vat-category-O.xml",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/vat-category-O.xml",
+      "sha256": "effff0baac622e1486c34240f06b9361cf58aaedbca44ac65826f1171d78f925",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/vat-category-O.xml"
+    },
+    "peppol-example-vat-z": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — vat-category-Z.xml",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/vat-category-Z.xml",
+      "sha256": "aaec0e1b6737c19164b4bcd26d0adce970d14e0a3fdeeb456b514993a92ff164",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/vat-category-Z.xml"
+    },
+    "peppol-example-creditnote-correction": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — base-creditnote-correction.xml",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/base-creditnote-correction.xml",
+      "sha256": "08e0ad82e0dbe7e16d7533c01761843343a56954ea24881d0f7f1cce06f8879e",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/base-creditnote-correction.xml"
+    },
+    "peppol-example-negative-inv-correction": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — base-negative-inv-correction.xml (explicitly a negative/corrective-invoice example, not a schema-error test case)",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/base-negative-inv-correction.xml",
+      "sha256": "000781ee8cb7794a140bb1308f7f7a2c9ded3623571b4297aef38423971ab5a4",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/base-negative-inv-correction.xml"
+    },
+    "peppol-example-sales-order": {
+      "description": "ANT-STD-7A: OpenPeppol BIS Billing 3.0 UBL example — sales-order-example.xml",
+      "upstream": "OpenPEPPOL/peppol-bis-invoice-3",
+      "tag": "v3.0.20",
+      "license": "Apache-2.0 (per repository)",
+      "url": "https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/v3.0.20/rules/examples/sales-order-example.xml",
+      "sha256": "cdb84e4ce1a770f6e4a8949dcbe37493bc37aeded5232b592a1a48feb221a504",
+      "kind": "file",
+      "target": "work/fixture-src/conformance/peppol-ubl/sales-order-example.xml"
     },
     "schxslt": {
       "description": "SchXslt 1.10.1 XSLT-only distribution — Schematron→XSLT transpiler, runs under xslt3/Node (no Java; same version KoSIT uses)",
@@ -93,7 +215,31 @@
       "kind": "zip",
       "extract": {
         "instances/standard/01.01a-INVOICE_ubl.xml": "work/fixture-src/ubl-xrechnung-valid.xml",
-        "instances/standard/01.01a-INVOICE_uncefact.xml": "work/fixture-src/cii-xrechnung-valid.xml"
+        "instances/standard/01.01a-INVOICE_uncefact.xml": "work/fixture-src/cii-xrechnung-valid.xml",
+        "instances/standard/01.05a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/01.05a-INVOICE_ubl.xml",
+        "instances/standard/01.05a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/01.05a-INVOICE_uncefact.xml",
+        "instances/standard/01.09a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/01.09a-INVOICE_ubl.xml",
+        "instances/standard/01.09a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/01.09a-INVOICE_uncefact.xml",
+        "instances/standard/01.13a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/01.13a-INVOICE_ubl.xml",
+        "instances/standard/01.13a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/01.13a-INVOICE_uncefact.xml",
+        "instances/standard/01.17a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/01.17a-INVOICE_ubl.xml",
+        "instances/standard/01.17a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/01.17a-INVOICE_uncefact.xml",
+        "instances/standard/01.20a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/01.20a-INVOICE_ubl.xml",
+        "instances/standard/01.20a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/01.20a-INVOICE_uncefact.xml",
+        "instances/standard/02.01a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/02.01a-INVOICE_ubl.xml",
+        "instances/standard/02.01a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/02.01a-INVOICE_uncefact.xml",
+        "instances/standard/02.03a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/02.03a-INVOICE_ubl.xml",
+        "instances/standard/02.03a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/02.03a-INVOICE_uncefact.xml",
+        "instances/standard/02.05a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/02.05a-INVOICE_ubl.xml",
+        "instances/standard/02.05a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/02.05a-INVOICE_uncefact.xml",
+        "instances/standard/03.01a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/03.01a-INVOICE_ubl.xml",
+        "instances/standard/03.01a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/03.01a-INVOICE_uncefact.xml",
+        "instances/standard/03.03a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/03.03a-INVOICE_ubl.xml",
+        "instances/standard/03.03a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/03.03a-INVOICE_uncefact.xml",
+        "instances/standard/03.05a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/03.05a-INVOICE_ubl.xml",
+        "instances/standard/03.05a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/03.05a-INVOICE_uncefact.xml",
+        "instances/standard/03.07a-INVOICE_ubl.xml": "work/fixture-src/conformance/xrechnung-ubl/03.07a-INVOICE_ubl.xml",
+        "instances/standard/03.07a-INVOICE_uncefact.xml": "work/fixture-src/conformance/xrechnung-cii/03.07a-INVOICE_uncefact.xml"
       }
     }
   }
