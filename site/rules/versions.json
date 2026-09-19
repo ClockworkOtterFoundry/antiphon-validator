@@ -1,6 +1,6 @@
 {
-  "bundleRelease": "0.10.0-unreleased",
-  "generated": "2026-09-13T18:02:59.878Z",
+  "bundleRelease": "1.0.0",
+  "generated": "2026-09-19T04:22:25.603Z",
   "tools": {
     "xslt3": "2.7.0",
     "saxon-js": "2.7.0",
