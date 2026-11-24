@@ -274,16 +274,22 @@ h1 {
 }
 #waitlist-form button:hover { background: #000; }
 #waitlist-form button:focus-visible { outline: 2px solid var(--rubric); outline-offset: 2px; }
-/* ---- lead form (commercial licensing inquiries) ---- */
-#lead-submit-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
+/* ---- evaluation-key request form ---- */
+#eval-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.8rem 0.9rem;
   margin-top: 0.8rem;
 }
-#lead-submit-form input[type="text"]:not(#lead-website),
-#lead-submit-form textarea {
-  flex: 1 1 14rem;
+#eval-form[hidden] { display: none; }
+.eval-wide { grid-column: 1 / -1; }
+.eval-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.eval-field label,
+.eval-formats legend { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+.req { color: var(--rubric); }
+#eval-form input[type="text"]:not(#eval-website),
+#eval-form input[type="email"],
+#eval-form select {
   font-family: var(--mono);
   font-size: 0.82rem;
   padding: 0.5rem 0.7rem;
@@ -291,16 +297,15 @@ h1 {
   border-radius: 3px;
   background: var(--paper);
   color: var(--ink);
+  width: 100%;
 }
-#lead-submit-form textarea {
-  flex-basis: 100%;
-  min-height: 4.5rem;
-  resize: vertical;
-}
-#lead-submit-form input:focus-visible,
-#lead-submit-form textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
-#lead-website { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
-#lead-submit-form button {
+.eval-formats { border: 1px solid var(--line); border-radius: 3px; padding: 0.5rem 0.8rem 0.7rem; margin: 0; }
+.eval-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.4rem 0.9rem; }
+.eval-checks label { font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+#eval-form input:focus-visible,
+#eval-form select:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+#eval-website { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+#eval-form button {
   font-family: var(--mono);
   font-size: 0.82rem;
   font-weight: 600;
@@ -311,8 +316,10 @@ h1 {
   border-radius: 3px;
   cursor: pointer;
 }
-#lead-submit-form button:hover { background: #000; }
-#lead-submit-form button:focus-visible { outline: 2px solid var(--rubric); outline-offset: 2px; }
+#eval-form button:hover { background: #000; }
+#eval-form button:disabled { opacity: 0.6; cursor: default; }
+#eval-form button:focus-visible { outline: 2px solid var(--rubric); outline-offset: 2px; }
+.result-cta { margin-top: 1.2rem; }
 
 .waitlist-thanks {
   margin-top: 2.2rem;

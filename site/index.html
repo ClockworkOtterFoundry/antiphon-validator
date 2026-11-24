@@ -53,6 +53,7 @@
     <div class="voice-body">
       <h2 class="voice-title">The response</h2>
       <div id="report"></div>
+      <p class="quiet result-cta">Run these same rules in your .NET code: <a href="https://clockworkotterfoundry.com/antiphon/">Antiphon</a></p>
       <div id="waitlist"></div>
     </div>
   </section>
@@ -60,8 +61,78 @@
   <section class="voice" id="lead">
     <div class="voice-mark" aria-hidden="true">&#9993;</div>
     <div class="voice-body">
-      <h2 class="voice-title">Commercial licensing</h2>
-      <div id="lead-form"></div>
+      <h2 class="voice-title">Get a free Antiphon evaluation key</h2>
+      <p class="viol-msg">We reply personally, usually the same business day. We’ll ask what you’re building so we can help, not to sell you anything.</p>
+      <p class="viol-msg" id="eval-intro"></p>
+      <div id="eval-done" class="waitlist-thanks" role="status" hidden></div>
+      <form id="eval-form" novalidate>
+        <div class="eval-field">
+          <label for="eval-name">Name <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="eval-name" name="name" required aria-required="true" maxlength="200" autocomplete="name">
+        </div>
+        <div class="eval-field">
+          <label for="eval-email">Work email <span class="req" aria-hidden="true">*</span></label>
+          <input type="email" id="eval-email" name="email" required aria-required="true" maxlength="254" autocomplete="email">
+        </div>
+        <div class="eval-field">
+          <label for="eval-company">Company <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="eval-company" name="company" required aria-required="true" maxlength="200" autocomplete="organization">
+        </div>
+        <div class="eval-field">
+          <label for="eval-country">Country <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="eval-country" name="country" required aria-required="true" maxlength="100" autocomplete="country-name">
+        </div>
+        <div class="eval-field eval-wide">
+          <label for="eval-building">What are you building? <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="eval-building" name="building" required aria-required="true" maxlength="500" autocomplete="off">
+        </div>
+        <fieldset class="eval-wide eval-formats">
+          <legend>Formats you need <span class="req" aria-hidden="true">*</span></legend>
+          <div class="eval-checks">
+            <label><input type="checkbox" id="eval-format-first" name="formats" value="xrechnung"> XRechnung (UBL/CII)</label>
+            <label><input type="checkbox" name="formats" value="peppol"> Peppol BIS</label>
+            <label><input type="checkbox" name="formats" value="facturx"> Factur-X/ZUGFeRD</label>
+            <label><input type="checkbox" name="formats" value="en16931"> EN 16931 generic</label>
+            <label><input type="checkbox" name="formats" value="other"> Other</label>
+          </div>
+        </fieldset>
+        <div class="eval-field">
+          <label for="eval-timeline">Timeline (optional)</label>
+          <select id="eval-timeline" name="timeline">
+            <option value="">Choose…</option>
+            <option value="exploring">Exploring</option>
+            <option value="under-3-months">Production in under 3 months</option>
+            <option value="3-12-months">Production in 3 to 12 months</option>
+          </select>
+        </div>
+        <div class="eval-field">
+          <label for="eval-target">Target system (optional)</label>
+          <select id="eval-target" name="target">
+            <option value="">Choose…</option>
+            <option value="erp">ERP</option>
+            <option value="own-saas">Own SaaS</option>
+            <option value="accounting">Accounting product</option>
+            <option value="middleware">Integration middleware</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="eval-field eval-wide">
+          <label for="eval-source">How did you find Antiphon? (optional)</label>
+          <input type="text" id="eval-source" name="source" maxlength="200" autocomplete="off">
+        </div>
+        <input type="text" id="eval-website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="eval-wide eval-actions">
+          <button type="submit" id="eval-submit">Request my key</button>
+        </div>
+      </form>
+      <p class="quiet" id="eval-status" role="status" aria-live="polite"></p>
+      <p class="quiet">We use what you send only to reply to you and to issue your key. Details:
+        <a href="https://clockworkotterfoundry.com/privacy/">Privacy Policy</a>.
+        The validator itself runs in your browser: nothing you paste ever leaves the page.</p>
+      <p class="quiet">Plans and terms:
+        <a href="https://clockworkotterfoundry.com/antiphon/pricing">pricing</a> ·
+        <a href="https://clockworkotterfoundry.com/antiphon/licensing">licensing</a> ·
+        <a href="https://clockworkotterfoundry.com/antiphon/evaluate">evaluating Antiphon</a></p>
     </div>
   </section>
 </main>
@@ -74,6 +145,11 @@
           the CEN EN 16931 rules plus the Peppol or XRechnung (KoSIT) layer where applicable.</li>
       <li>The <strong>XSD schema layer is not run</strong> in this version. Schematron catches most real-world
           rejections, but a schema-invalid document can produce confusing rule results.</li>
+      <li><strong>Known upstream behaviour:</strong> the official CEN EN&nbsp;16931 rules v1.3.17 run here exactly
+          as published. In that release, Greek VAT identifiers starting with EL are flagged by BR-CO-09 (an
+          <a href="https://github.com/ConnectingEurope/eInvoicing-EN16931/issues/532">open upstream issue</a>),
+          and electronic-address scheme IDs 0219 and 0220 are no longer accepted. A finding that matches
+          these comes from the published rule set, not from an error in your data.</li>
       <li><strong>Factur-X/ZUGFeRD:</strong> paste the invoice XML. Extracting the XML from the PDF container
           is coming; PDF files are not read yet.</li>
       <li>Validated against the pinned official rule releases listed below — the same artifacts the

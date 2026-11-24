@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "pipeline": "node pipeline/fetch.mjs && node pipeline/compile.mjs && node pipeline/fixtures.mjs",
-    "test": "node tests/run.mjs && node --test tests/worker.test.mjs",
+    "test": "node tests/run.mjs && node --test tests/worker.test.mjs tests/site.test.mjs",
     "serve": "node -e \"import('node:http').then(({createServer})=>import('node:fs/promises').then(({readFile})=>{const t={html:'text/html',js:'text/javascript',css:'text/css',json:'application/json',xml:'application/xml'};createServer(async(q,s)=>{try{const p='site'+(q.url==='/'?'/index.html':q.url.split('?')[0]);const b=await readFile(p);s.setHeader('content-type',t[p.split('.').pop()]||'application/octet-stream');s.end(b)}catch{s.statusCode=404;s.end('not found')}}).listen(8080,()=>console.log('http://localhost:8080'))}))\""
   },
   "devDependencies": {

@@ -11,6 +11,7 @@ Fits the VR-06 cost ceiling: Workers + KV free tier covers Gate 4 traffic comfor
 | `POST /waitlist` | `{ email, note?, website? }` | `{ ts, note }` keyed by lowercased email (idempotent). `website` is a honeypot — non-empty gets a fake OK and stores nothing. |
 | `POST /event` | `{ format, outcome, fatals, warnings, rules }` | one append-only row per validation, 400-day TTL. Formats/outcomes allowlisted; rule IDs pattern-checked; anything with markup rejected. |
 | `POST /lead` | `{ name, contact, comments?, website? }` | **not stored** — emailed to the address in the `LEAD_RECIPIENT_EMAIL` secret via Resend's REST API (plain `fetch()`, no Cloudflare binding), subject `ANTIPHON LEAD - <date>`, body has `name`/`contact`/`comments` plus a full ISO 8601 timestamp. `website` is a honeypot — non-empty gets a fake OK and sends nothing. |
+| `POST /evaluation` | `{ name, email, company, country, building, formats[], timeline?, target?, source?, website? }` | **not stored** — one email via the same Resend path as `/lead` (see "`/evaluation`" below). |
 | `GET /export/waitlist` | `Authorization: Bearer <EXPORT_TOKEN>` | → JSON rows (Gate 4: waitlist count) |
 | `GET /export/events` | same | → JSON rows (Gate 4: validations by format, pass/fail; rule-ID histogram for explanation curation) |
 
@@ -65,3 +66,50 @@ turned out to require the paid Workers plan — this route instead POSTs to
   3. `wrangler secret put LEAD_RECIPIENT_EMAIL`
 - `LEAD_FROM_ADDRESS` (a var in `wrangler.toml`) is a placeholder (`leads@clockworkotterfoundry.com`)
   — update it to whatever address on the Resend-verified domain should appear as the sender.
+
+### `/evaluation` — ANT-V6 (evaluation-key request form)
+
+`POST /evaluation` backs the validator page's "Get a free Antiphon evaluation key" form. It
+emails the founder one plain-text message and **forgets**: no KV write, no logging of the
+submission, no IP, no user agent. `/lead`, `/waitlist` and `/event` are unchanged (the
+previously deployed site still uses them until the new site is deployed).
+
+Request: `Content-Type: application/json`, body at most 8 KB (413 above that, 415 for another
+content type). Fields (strings are trimmed; over-length is rejected, not truncated):
+
+| Field | Required | Limit / allowed values |
+|---|---|---|
+| `name` | yes | 200 chars |
+| `email` | yes | 254 chars, must match the same `EMAIL_RE` as the other routes |
+| `company` | yes | 200 chars |
+| `country` | yes | 100 chars |
+| `building` | yes | 500 chars ("What are you building?") |
+| `formats` | yes | non-empty array of `xrechnung`, `peppol`, `facturx`, `en16931`, `other` |
+| `timeline` | no | `exploring`, `under-3-months`, `3-12-months` |
+| `target` | no | `erp`, `own-saas`, `accounting`, `middleware`, `other` |
+| `source` | no | 200 chars ("How did you find Antiphon?") |
+| `website` | honeypot | any non-empty value gets `200 {ok:true}` and sends nothing |
+
+Any text field containing `<` or `>` or a control character (CR/LF, NUL, U+2028/2029, ...) is
+rejected, which also closes header/subject injection. Subject is
+`Antiphon evaluation key request: <company>` (truncated to 80 chars); `reply_to` is the
+validated submitter email; the body lists the fields and a UTC timestamp. Errors are generic
+`{ "error": "..." }` and never echo input. 502 if the two secrets are unset or Resend fails.
+
+**Secrets:** none new. It reuses `RESEND_API_KEY` and `LEAD_RECIPIENT_EMAIL` (Worker secrets,
+never files; this directory is mirrored to the public `antiphon-validator` repo) and the
+`LEAD_FROM_ADDRESS` var.
+
+**Deploy order (user present):**
+1. The website's `/privacy` page update is live (the form links to it and the Worker starts
+   collecting what it describes).
+2. `wrangler deploy` (from `validator/worker/`).
+3. `tools/sync-validator-public.sh`, then deploy the site.
+
+Example with fake data:
+
+```bash
+curl -sS -X POST https://antiphon-validator-api.clockworkotterfoundry.workers.dev/evaluation \
+  -H 'content-type: application/json' \
+  -d '{"name":"Test Person","email":"test@example.com","company":"Example GmbH","country":"Germany","building":"ERP invoicing module","formats":["xrechnung","peppol"],"timeline":"exploring","target":"erp","website":""}'
+```

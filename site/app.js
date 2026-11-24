@@ -3,7 +3,7 @@
 // page load; validating a document performs no network request at all.
 import { detectFormat } from "./detect.js";
 import { EXPLANATIONS } from "./explanations.js";
-import { config } from "./config.js";
+import { config, evaluationCopy } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 const input = $("xml-input");
@@ -432,58 +432,76 @@ async function submitWaitlist(e) {
   }
 }
 
-// ---------- lead form (commercial licensing inquiries — visible from page load, not gated on a validation run) ----------
-let leadState = "open"; // open | done
-renderLeadForm(); // independent of rule-set loading — the lead form has nothing to validate;
-                  // called here (after leadState's own declaration has run), not at the top of the
-                  // module, since a module's `let` bindings are in the temporal dead zone until the
-                  // line that declares them actually executes.
-function renderLeadForm() {
-  const host = $("lead-form");
-  if (leadState === "done") {
-    host.innerHTML = `<p class="waitlist-thanks">Thanks — we’ll be in touch.</p>`;
-    return;
-  }
-  host.innerHTML =
-    `<p class="viol-msg">Interested in commercial licensing? Evaluation mode is live and free today —
-     commercial licensing isn’t purchasable yet, but early inquiries get priority pricing. Tell us
-     a bit about your use case and we’ll follow up.</p>` +
-    `<form id="lead-submit-form">` +
-    `<input type="text" id="lead-name" required maxlength="200" placeholder="Name" aria-label="Name">` +
-    `<input type="text" id="lead-contact" required maxlength="200" placeholder="Email or other contact info" aria-label="Contact info">` +
-    `<textarea id="lead-comments" maxlength="1000" placeholder="What are you looking to do? (optional)" aria-label="Optional comments"></textarea>` +
-    `<input type="text" id="lead-website" tabindex="-1" autocomplete="off" aria-hidden="true">` +
-    `<button type="submit">Send</button>` +
-    `</form>` +
-    `<p class="quiet" id="lead-status"></p>`;
-  $("lead-submit-form").addEventListener("submit", submitLead);
+// ---------- evaluation-key request form (visible from page load, not gated on a validation run) ----------
+const EVAL_LIMITS = { name: 200, email: 254, company: 200, country: 100, building: 500, source: 200 };
+const EVAL_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/; // same shape as the Worker's EMAIL_RE
+const evalCopy = evaluationCopy(config.antiphon11Live === true);
+$("eval-intro").textContent = evalCopy.intro;
+$("eval-form").addEventListener("submit", submitEvaluation);
+
+function evalValues() {
+  const v = (id) => $(id).value.trim();
+  return {
+    name: v("eval-name"),
+    email: v("eval-email"),
+    company: v("eval-company"),
+    country: v("eval-country"),
+    building: v("eval-building"),
+    formats: [...document.querySelectorAll('#eval-form input[name="formats"]:checked')].map((c) => c.value),
+    timeline: $("eval-timeline").value,
+    target: $("eval-target").value,
+    source: v("eval-source"),
+    website: $("eval-website").value, // honeypot — humans leave it empty
+  };
 }
 
-async function submitLead(e) {
+/** First problem as { id, message } (focus target + status text), or null. */
+function evalProblem(d) {
+  const labels = { name: "your name", email: "your work email", company: "your company", country: "your country", building: "what you are building" };
+  for (const k of ["name", "email", "company", "country", "building"]) {
+    if (!d[k] || d[k].length > EVAL_LIMITS[k] || /[<>]/.test(d[k]))
+      return { id: "eval-" + k, message: "Please enter " + labels[k] + " (up to " + EVAL_LIMITS[k] + " characters, no < or >)." };
+  }
+  if (!EVAL_EMAIL_RE.test(d.email)) return { id: "eval-email", message: "Please enter a valid work email." };
+  if (d.formats.length === 0) return { id: "eval-format-first", message: "Please choose at least one format." };
+  if (d.source.length > EVAL_LIMITS.source || /[<>]/.test(d.source))
+    return { id: "eval-source", message: "Please shorten that answer (no < or >)." };
+  return null;
+}
+
+async function submitEvaluation(e) {
   e.preventDefault();
-  const statusEl = $("lead-status");
-  if (!config.leadEndpoint) {
-    statusEl.textContent = "This is a preview build — contact isn’t wired up yet.";
+  const statusEl = $("eval-status");
+  const data = evalValues();
+  const problem = evalProblem(data);
+  if (problem) {
+    statusEl.textContent = problem.message;
+    $(problem.id).focus();
     return;
   }
-  const body = JSON.stringify({
-    name: $("lead-name").value.trim(),
-    contact: $("lead-contact").value.trim(),
-    comments: $("lead-comments").value.trim(),
-    website: $("lead-website").value, // honeypot — humans leave it empty
-  });
+  if (!config.evaluationEndpoint) {
+    statusEl.textContent = "This is a preview build — the request form isn’t wired up yet.";
+    return;
+  }
+  const submit = $("eval-submit");
+  submit.disabled = true;
   statusEl.textContent = "Sending…";
   try {
-    const res = await fetch(config.leadEndpoint, {
+    const res = await fetch(config.evaluationEndpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body,
+      body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    leadState = "done";
-    renderLeadForm();
+    statusEl.textContent = "";
+    $("eval-form").hidden = true;
+    $("eval-intro").hidden = true;
+    const done = $("eval-done");
+    done.textContent = evalCopy.thanks;
+    done.hidden = false;
   } catch {
-    statusEl.textContent = "That didn’t go through — please try again in a moment.";
+    submit.disabled = false;
+    statusEl.textContent = "That didn’t go through. Please try again in a moment, or write to info@clockworkotterfoundry.com.";
   }
 }
 

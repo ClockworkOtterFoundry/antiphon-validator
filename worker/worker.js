@@ -1,6 +1,6 @@
 // Antiphon validator backend — Cloudflare Worker (waitlist + content-free telemetry + lead form).
 // Written in G3-2; DEPLOYED ONLY IN G3-3 (account setup is a user-present action).
-// /lead added in ANT-V5.
+// /lead added in ANT-V5; /evaluation (evaluation-key request form) added in ANT-V6.
 //
 // Privacy by design, matching the site's on-page statement:
 //   - /waitlist stores exactly { email, note, ts } — no IP, no user agent.
@@ -8,6 +8,8 @@
 //     counts, rule-ID histogram. Anything that smells like document content is rejected.
 //   - /lead sends (never stores) exactly { name, contact, comments, ts } by email — no IP,
 //     no user agent, same as the above.
+//   - /evaluation sends (never stores) the evaluation-key request fields by email — no IP,
+//     no user agent, no KV write, same as /lead.
 //   - Exports are read-only and token-gated; they exist so Gate 4 evidence
 //     (waitlist count, sessions-by-format, pass/fail ratio) can be evaluated.
 //
@@ -49,6 +51,7 @@ export default {
     if (request.method === "POST" && url.pathname === "/waitlist") return waitlist(request, env);
     if (request.method === "POST" && url.pathname === "/event") return event(request, env);
     if (request.method === "POST" && url.pathname === "/lead") return lead(request, env);
+    if (request.method === "POST" && url.pathname === "/evaluation") return evaluation(request, env);
     if (request.method === "GET" && url.pathname === "/export/waitlist") return exportKv(request, env, env.WAITLIST, "email:");
     if (request.method === "GET" && url.pathname === "/export/events") return exportKv(request, env, env.EVENTS, "ev:");
 
@@ -161,6 +164,126 @@ async function lead(request, env) {
     return json({ error: "send failed" }, 502, env);
   }
 
+  return json({ ok: true }, 200, env);
+}
+
+// ---- /evaluation (ANT-V6): evaluation-key request form. Sends one email, stores nothing. ----
+const EVAL_MAX_BODY_BYTES = 8 * 1024;
+const EVAL_FORMATS = new Set(["xrechnung", "peppol", "facturx", "en16931", "other"]);
+const EVAL_TIMELINES = new Set(["exploring", "under-3-months", "3-12-months"]);
+const EVAL_TARGETS = new Set(["erp", "own-saas", "accounting", "middleware", "other"]);
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = "[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]";
+const HAS_CONTROL_RE = new RegExp(CONTROL_CHARS);
+const CONTROL_RE = new RegExp(CONTROL_CHARS, "g"); // only for .replace (stateless there)
+
+/** Required/optional single-line text field: returns the trimmed string, or null if invalid. */
+function evalText(value, max, required) {
+  if (value === undefined || value === null) return required ? null : "";
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  if (required && !v) return null;
+  if (v.length > max || smellsLikeContent(v) || HAS_CONTROL_RE.test(v)) return null;
+  return v;
+}
+
+async function evaluation(request, env) {
+  const bad = () => json({ error: "invalid request" }, 400, env);
+
+  if (!(request.headers.get("content-type") || "").toLowerCase().startsWith("application/json"))
+    return json({ error: "unsupported content type" }, 415, env);
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > EVAL_MAX_BODY_BYTES) return json({ error: "request too large" }, 413, env);
+
+  // Read the body in chunks and stop at the cap, so a missing/lying Content-Length cannot
+  // make the Worker buffer an arbitrarily large request.
+  const chunks = [];
+  let received = 0;
+  try {
+    const reader = request.body ? request.body.getReader() : null;
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > EVAL_MAX_BODY_BYTES) {
+        try { await reader.cancel(); } catch { /* already closed */ }
+        return json({ error: "request too large" }, 413, env);
+      }
+      chunks.push(value);
+    }
+  } catch { return bad(); }
+  let body;
+  try {
+    const all = new Uint8Array(received);
+    let off = 0;
+    for (const c of chunks) { all.set(c, off); off += c.byteLength; }
+    body = JSON.parse(new TextDecoder().decode(all));
+  } catch { return bad(); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return bad();
+
+  // Honeypot first: bots fill every field. Fake OK, send nothing. Any value other than
+  // absent/null/blank-string counts, and nothing is coerced (an object with a hostile
+  // toString must not be able to throw here).
+  const hp = body.website;
+  if (hp !== undefined && hp !== null && !(typeof hp === "string" && hp.trim() === "")) return json({ ok: true }, 200, env);
+
+  const name = evalText(body.name, 200, true);
+  const email = evalText(body.email, 254, true);
+  const company = evalText(body.company, 200, true);
+  const country = evalText(body.country, 100, true);
+  const building = evalText(body.building, 500, true);
+  const source = evalText(body.source, 200, false);
+  if ([name, email, company, country, building, source].includes(null)) return bad();
+  if (!EMAIL_RE.test(email)) return bad();
+
+  if (!Array.isArray(body.formats) || body.formats.length === 0 || body.formats.length > EVAL_FORMATS.size) return bad();
+  if (!body.formats.every((f) => typeof f === "string" && EVAL_FORMATS.has(f))) return bad();
+  const formats = [...new Set(body.formats)];
+
+  const optionalEnum = (v, allowed) => (v === undefined || v === null || v === "" ? "" : typeof v === "string" && allowed.has(v) ? v : null);
+  const timeline = optionalEnum(body.timeline, EVAL_TIMELINES);
+  const target = optionalEnum(body.target, EVAL_TARGETS);
+  if (timeline === null || target === null) return bad();
+
+  if (!env.RESEND_API_KEY || !env.LEAD_RECIPIENT_EMAIL) return json({ error: "not configured" }, 502, env);
+
+  // Subject is built from the sanitized company only (control characters already rejected
+  // above; the replace below is defence in depth), truncated to 80.
+  const subjectCompany = company.replace(CONTROL_RE, " ").slice(0, 80);
+  const ts = new Date().toISOString();
+  // Body intentionally omits IP address and user agent — explicit product decision.
+  const text =
+    `Name: ${name}\n` +
+    `Email: ${email}\n` +
+    `Company: ${company}\n` +
+    `Country: ${country}\n` +
+    `Building: ${building}\n` +
+    `Formats: ${formats.join(", ")}\n` +
+    `Timeline: ${timeline || "(not given)"}\n` +
+    `Target system: ${target || "(not given)"}\n` +
+    `Found us via: ${source || "(not given)"}\n` +
+    `Sent: ${ts}\n`;
+
+  const doFetch = env.__fetch || fetch;
+  try {
+    const res = await doFetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.LEAD_FROM_ADDRESS || "leads@clockworkotterfoundry.com",
+        to: [env.LEAD_RECIPIENT_EMAIL],
+        reply_to: email,
+        subject: `Antiphon evaluation key request: ${subjectCompany}`,
+        text,
+      }),
+    });
+    if (!res.ok) return json({ error: "send failed" }, 502, env);
+  } catch {
+    return json({ error: "send failed" }, 502, env);
+  }
   return json({ ok: true }, 200, env);
 }
 

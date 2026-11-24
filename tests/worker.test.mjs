@@ -221,3 +221,179 @@ test("CORS: preflight allowed, origin from env", async () => {
   assert.equal(res.status, 204);
   assert.equal(res.headers.get("access-control-allow-origin"), "https://example.test");
 });
+
+// ---- /evaluation (ANT-V6) ----
+const validEval = () => ({
+  name: "Dev Person",
+  email: "dev@company.eu",
+  company: "Fabricated GmbH",
+  country: "Germany",
+  building: "An invoicing module for our ERP",
+  formats: ["xrechnung", "peppol"],
+  timeline: "exploring",
+  target: "erp",
+  source: "A search",
+  website: "",
+});
+const evalPost = (body, headers = { "content-type": "application/json" }) =>
+  new Request("https://api.test/evaluation", {
+    method: "POST",
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    headers,
+  });
+const assertRejected = async (body, label, status = 400) => {
+  const env = makeEnv();
+  const res = await worker.fetch(evalPost(body), env);
+  assert.equal(res.status, status, label);
+  assert.equal(env.__resendCalls.length, 0, label + ": nothing sent");
+  assert.deepEqual(await res.json(), { error: status === 413 ? "request too large" : "invalid request" }, label + ": generic error");
+};
+
+test("evaluation: valid request sends exactly one email with subject, reply-to and fields; stores nothing", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(
+    evalPost(validEval(), { "content-type": "application/json", "user-agent": "SecretAgent/9", "x-forwarded-for": "203.0.113.9" }),
+    env
+  );
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true });
+  assert.equal(env.__resendCalls.length, 1);
+  const msg = JSON.parse(env.__resendCalls[0].init.body);
+  assert.deepEqual(msg.to, ["recipient@example.test"]);
+  assert.equal(msg.reply_to, "dev@company.eu");
+  assert.equal(msg.subject, "Antiphon evaluation key request: Fabricated GmbH");
+  for (const s of ["Dev Person", "dev@company.eu", "Fabricated GmbH", "Germany", "An invoicing module for our ERP", "xrechnung, peppol", "exploring", "erp", "A search"])
+    assert.ok(msg.text.includes(s), "body has " + s);
+  assert.match(msg.text, /Sent: \d{4}-\d{2}-\d{2}T[\d:.]+Z/);
+  assert.doesNotMatch(JSON.stringify(msg) + JSON.stringify(env.__resendCalls[0].init.headers), /SecretAgent|203\.0\.113\.9|user-agent|x-forwarded-for/i);
+  assert.equal(env.WAITLIST.store.size, 0);
+  assert.equal(env.EVENTS.store.size, 0);
+});
+
+test("evaluation: optional fields may be absent", async () => {
+  const env = makeEnv();
+  const b = validEval();
+  delete b.timeline; delete b.target; delete b.source; delete b.website;
+  assert.equal((await worker.fetch(evalPost(b), env)).status, 200);
+  assert.match(JSON.parse(env.__resendCalls[0].init.body).text, /Timeline: \(not given\)/);
+});
+
+test("evaluation: subject company is truncated to 80", async () => {
+  const env = makeEnv();
+  const b = validEval();
+  b.company = "A".repeat(80) + "B".repeat(100);
+  assert.equal((await worker.fetch(evalPost(b), env)).status, 200);
+  assert.equal(JSON.parse(env.__resendCalls[0].init.body).subject, "Antiphon evaluation key request: " + "A".repeat(80));
+});
+
+test("evaluation: control characters (header injection attempts) are rejected in every text field", async () => {
+  for (const f of ["name", "email", "company", "country", "building", "source"])
+    for (const bad of ["x\r\nBcc: evil@example.test", "x\ny", "x\u0000y", "x y"]) {
+      const b = validEval();
+      b[f] = f === "email" ? "dev@company.eu" + bad : bad;
+      await assertRejected(b, `${f} ${JSON.stringify(bad)}`);
+    }
+});
+
+test("evaluation: each required field missing, empty or non-string is rejected", async () => {
+  for (const f of ["name", "email", "company", "country", "building", "formats"]) {
+    let b = validEval(); delete b[f]; await assertRejected(b, "missing " + f);
+    b = validEval(); b[f] = f === "formats" ? [] : "   "; await assertRejected(b, "empty " + f);
+    b = validEval(); b[f] = {}; await assertRejected(b, "object " + f);
+  }
+});
+
+test("evaluation: over-length fields are rejected, at-limit accepted", async () => {
+  const limits = { name: 200, company: 200, country: 100, building: 500, source: 200 };
+  for (const [f, max] of Object.entries(limits)) {
+    let b = validEval(); b[f] = "a".repeat(max);
+    assert.equal((await worker.fetch(evalPost(b), makeEnv())).status, 200, f + " at limit ok");
+    b = validEval(); b[f] = "a".repeat(max + 1); await assertRejected(b, "over " + f);
+  }
+  const b = validEval(); b.email = "a".repeat(250) + "@b.eu"; await assertRejected(b, "over email");
+});
+
+test("evaluation: bad email, markup, unknown enums, malformed JSON are rejected", async () => {
+  for (const e of ["nope", "a@b", "a b@c.eu", "<a>@c.eu"]) { const b = validEval(); b.email = e; await assertRejected(b, "email " + e); }
+  for (const f of ["name", "company", "country", "building", "source"]) {
+    const b = validEval(); b[f] = "<Invoice>secret</Invoice>"; await assertRejected(b, "markup " + f);
+  }
+  let b = validEval(); b.formats = ["xrechnung", "cobol"]; await assertRejected(b, "unknown format");
+  b = validEval(); b.formats = "xrechnung"; await assertRejected(b, "formats not array");
+  b = validEval(); b.formats = [1]; await assertRejected(b, "format not string");
+  b = validEval(); b.timeline = "yesterday"; await assertRejected(b, "unknown timeline");
+  b = validEval(); b.target = "mainframe"; await assertRejected(b, "unknown target");
+  await assertRejected("not json", "invalid JSON");
+  await assertRejected("null", "null body");
+  await assertRejected("[]", "array body");
+});
+
+test("evaluation: honeypot returns 200 and sends nothing (including non-string values)", async () => {
+  for (const hp of ["http://spam", ["spam"], 1]) {
+    const env = makeEnv();
+    const res = await worker.fetch(evalPost({ ...validEval(), website: hp }), env);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true });
+    assert.equal(env.__resendCalls.length, 0);
+  }
+});
+
+test("evaluation: wrong content type and oversized bodies are rejected", async () => {
+  const env = makeEnv();
+  let res = await worker.fetch(evalPost(validEval(), { "content-type": "text/plain" }), env);
+  assert.equal(res.status, 415);
+  res = await worker.fetch(evalPost(validEval(), {}), env);
+  assert.equal(res.status, 415);
+  assert.equal(env.__resendCalls.length, 0);
+  await assertRejected({ ...validEval(), padding: "x".repeat(9000) }, "oversized body", 413);
+  // multi-byte characters count as bytes, not characters
+  await assertRejected({ ...validEval(), padding: "é".repeat(5000) }, "oversized multibyte body", 413);
+});
+
+test("evaluation: responses never echo input; CORS and method behave like /lead", async () => {
+  const env = makeEnv();
+  const b = validEval(); b.name = "<script>"; b.company = "ECHO-ME-NOT";
+  const res = await worker.fetch(evalPost(b), env);
+  const text = await res.text();
+  assert.doesNotMatch(text, /script|ECHO-ME-NOT|dev@company/);
+  assert.equal(res.headers.get("access-control-allow-origin"), "https://example.test");
+  const pre = await worker.fetch(new Request("https://api.test/evaluation", { method: "OPTIONS" }), env);
+  assert.equal(pre.status, 204);
+  const get = await worker.fetch(new Request("https://api.test/evaluation"), env);
+  assert.equal(get.status, 404);
+});
+
+test("evaluation: fails closed (502) when secrets are unset or Resend fails; never stores", async () => {
+  let env = makeEnv(); delete env.LEAD_RECIPIENT_EMAIL;
+  assert.equal((await worker.fetch(evalPost(validEval()), env)).status, 502);
+  assert.equal(env.__resendCalls.length, 0);
+  env = makeEnv(); delete env.RESEND_API_KEY;
+  assert.equal((await worker.fetch(evalPost(validEval()), env)).status, 502);
+  env = makeEnv(); env.__fetch = async () => ({ ok: false, status: 500 });
+  const res = await worker.fetch(evalPost(validEval()), env);
+  assert.equal(res.status, 502);
+  assert.deepEqual(await res.json(), { error: "send failed" });
+  env.__fetch = async () => { throw new Error("net"); };
+  assert.equal((await worker.fetch(evalPost(validEval()), env)).status, 502);
+  assert.equal(env.WAITLIST.store.size + env.EVENTS.store.size, 0);
+});
+
+test("evaluation: hostile honeypot object does not throw", async () => {
+  const env = makeEnv();
+  const res = await worker.fetch(evalPost('{"website":{"toString":null}}'), env);
+  assert.equal(res.status, 200);
+  assert.equal(env.__resendCalls.length, 0);
+});
+
+test("evaluation: oversized streamed body without Content-Length stops reading at the cap", async () => {
+  const env = makeEnv();
+  let pulled = 0;
+  const stream = new ReadableStream({
+    pull(c) { pulled++; c.enqueue(new Uint8Array(1024).fill(32)); if (pulled > 100) c.close(); },
+  });
+  const req = new Request("https://api.test/evaluation", { method: "POST", body: stream, duplex: "half", headers: { "content-type": "application/json" } });
+  const res = await worker.fetch(req, env);
+  assert.equal(res.status, 413);
+  assert.ok(pulled < 40, "stopped early, pulled " + pulled);
+  assert.equal(env.__resendCalls.length, 0);
+});
